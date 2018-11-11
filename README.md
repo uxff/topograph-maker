@@ -1,4 +1,4 @@
-#topograph simulate
+# topograph simulate
 
 To simulate a topograph maker, with moutains, with continent, with sea, with river, with rain.
 
@@ -8,7 +8,7 @@ Now, simulating is not successful.
 
 todo: use updater
 
-#represent topomap:
+# represent topomap:
 <img src="https://github.com/uxff/gravity_sim_go/raw/master/image/topomap-20180902070444.png">
 
 - ridge appear
