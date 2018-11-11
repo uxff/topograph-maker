@@ -23,6 +23,8 @@ import (
 
 const colorTplFile = "../image/color-tpl.png"
 
+// 第一方案： 计算有落差处的场
+// 随机滴水 在场附近的水将获得速度 带水滴移动 但是动力会衰减
 // 使用水滴滚动
 type Droplet struct {
 	x         float32
@@ -37,12 +39,12 @@ type Droplet struct {
 type WaterDot struct {
 	x       float32 // 将不变化 =Topomap[x,y] +(0.5, 0.5)
 	y       float32
-	xPower  float32 // v2 根据地形得出 初始化后不变(地形改变则会变) 基于Atan2 范围(-1,1)
-	yPower  float32 // v2 根据地形得出 初始化后不变(地形改变则会变)
-	h       int     // 积水高度，产生积水不参与流动，流动停止 // v2将由水滴实体代替该变量
+	xPower  float32 // 地形场 v2 根据地形得出 初始化后不变(地形改变则会变) 基于Atan2 范围(-1,1)
+	yPower  float32 // 地形场 v2 根据地形得出 初始化后不变(地形改变则会变)
+	h       int     // 积水高度，只记录积水，不参与流动计算，流动停止 // v2将由水滴实体代替该变量
 	q       int     // 流量 0=无 历史流量    //
-	xPowerQ float32 // v2 根据周围流量算出 每次update变化 基于Atan2 范围(-1,1)
-	yPowerQ float32 // v2
+	xPowerQ float32 // 流量场 v2 根据周围流量算出 每次update变化 基于Atan2 范围(-1,1)
+	yPowerQ float32 // 流量场 v2
 }
 type Topomap struct {
 	data   []uint8 // 对应坐标只保存高度
@@ -90,7 +92,7 @@ func (w *WaterMap) AssignVector(m *Topomap, ring int) {
 	}
 }
 
-// 按照周围流量更新场向量
+// 按照周围流量更新流量场向量
 // powerRate 一般指定小于1 比如0.1
 func (w *WaterMap) UpdateVectorByQuantity(m *Topomap, ring int, powerRate float32) {
 	for idx, curDot := range w.data {
@@ -175,7 +177,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap) {
 		return
 	}
 
-	// 没有场 可撒欢
+	// 没有场 可撒欢 根据落差带来的动力高歌猛进
 	if w.data[oldIdx].xPower == 0 && w.data[oldIdx].yPower == 0 {
 		//log.Printf("no field power, try slip(x=%f,y=%f)", d.x, d.y)
 		d.MoveByFallPower(m, w)
@@ -219,7 +221,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap) {
 	w.data[oldIdx].q++ // 流出，才算流量
 }
 
-// 根据落差能量移动 类似滑行 slip todo:浮动(撒欢)
+// 根据落差能量移动 类似滑行 落差的动力会衰减 slip todo:浮动(撒欢)
 func (d *Droplet) MoveByFallPower(m *Topomap, w *WaterMap) {
 	mu := sync.Mutex{}
 	mu.Lock()
