@@ -84,9 +84,12 @@ func ForeachImgDot(imgIo image.Image, walkHandler func(o image.Image, x int, y i
 	height := imgIo.Bounds().Dy()
 
 	for hi := 0; hi < height; hi++ {
-		for wi := 0; wi < width; wi++ {
-			walkHandler(imgIo, wi, hi, imgIo.At(wi, hi))
-		}
+		// use goroutine for each line
+		go func() {
+			for wi := 0; wi < width; wi++ {
+				walkHandler(imgIo, wi, hi, imgIo.At(wi, hi))
+			}
+		}()
 	}
 
 	return nil
