@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"math/rand"
 	"os"
+	"sync"
 )
 
 type Dot struct {
@@ -83,14 +84,19 @@ func ForeachImgDot(imgIo image.Image, walkHandler func(o image.Image, x int, y i
 	width := imgIo.Bounds().Dx()
 	height := imgIo.Bounds().Dy()
 
+	wg := &sync.WaitGroup{}
+
 	for hi := 0; hi < height; hi++ {
 		// use goroutine for each line
+		wg.Add(1)
 		go func() {
 			for wi := 0; wi < width; wi++ {
 				walkHandler(imgIo, wi, hi, imgIo.At(wi, hi))
 			}
+			wg.Done()
 		}()
 	}
+	wg.Wait()
 
 	return nil
 }
