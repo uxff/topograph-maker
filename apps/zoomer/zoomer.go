@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"sync"
+	"time"
 )
 
 type Dot struct {
@@ -68,7 +69,7 @@ func (d *Dot) GetNW() []Dot {
 	return pos
 }
 
-func ForeachImgDot(imgIo image.Image, walkHandler func(o image.Image, x int, y int, c color.Color)) error {
+func ZoomAllDots(imgIo image.Image, walkHandler func(o image.Image, x int, y int, c color.Color)) error {
 
 	if walkHandler == nil {
 		return fmt.Errorf("walkHandler is NULL")
@@ -89,12 +90,12 @@ func ForeachImgDot(imgIo image.Image, walkHandler func(o image.Image, x int, y i
 	for hi := 0; hi < height; hi++ {
 		// use goroutine for each line
 		wg.Add(1)
-		go func() {
+		go func(hi int) {
 			for wi := 0; wi < width; wi++ {
 				walkHandler(imgIo, wi, hi, imgIo.At(wi, hi))
 			}
 			wg.Done()
-		}()
+		}(hi)
 	}
 	wg.Wait()
 
@@ -122,6 +123,7 @@ func main() {
 	flag.StringVar(&inputPath, "i", inputPath, "input path")
 	flag.StringVar(&outputPath, "o", outputPath, "output path")
 	flag.Parse()
+	rand.Seed(time.Now().UnixNano())
 
 	if outputPath == "" {
 		outputPath = "x2-" + inputPath
@@ -146,7 +148,7 @@ func main() {
 
 	dotCounter := 0
 
-	ForeachImgDot(imgOld, func(o image.Image, x int, y int, c color.Color) {
+	ZoomAllDots(imgOld, func(o image.Image, x int, y int, c color.Color) {
 		dotCounter++
 		d := &Dot{x: x, y: y}
 		var sideDots []Dot
@@ -174,19 +176,42 @@ func main() {
 }
 
 func selColors(o image.Image, x, y int, width, height int, sideDots []Dot) (c color.Color) {
+	// as origin
+	//return o.At(x, y)
+	// as random
 	var colors []color.Color
+	colorMap := make(map[int]color.Color)
 	for _, do := range sideDots {
 		if do.x < 0 || do.y < 0 || do.x >= width || do.y >= height {
 			// out of bound
-			break
+			continue
 		}
+		cSide := o.At(do.x, do.y)
 		colors = append(colors, o.At(do.x, do.y))
+		cR, cG, cB, cA := cSide.RGBA()
+		colorMap[int((cR<<24)+(cG<<16)+(cB<<8)+(cA))] = cSide
 	}
+	c = o.At(x, y)
+	colors = append(colors, c)
+	colors = append(colors, c)
+	colors = append(colors, c)
+	colors = append(colors, c)
+	colors = append(colors, c)
+	colors = append(colors, c)
+
 	if len(colors) == 0 {
-		fmt.Sprintf("no color found from sides, use self\n")
-		c = o.At(x, y)
+		fmt.Printf("no color found from sides, use self x:%d y:%d\n", x, y)
 	} else {
+		// as random
 		c = colors[rand.Int()%len(colors)]
+		return
+		// as side if side same
+		if len(colorMap) == 1 {
+			for _, cv := range colorMap {
+				c = cv
+				break
+			}
+		}
 	}
 	return c
 
