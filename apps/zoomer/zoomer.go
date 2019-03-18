@@ -1,10 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"math/rand"
 	"os"
 )
 
@@ -90,10 +92,6 @@ func ForeachImgDot(imgIo image.Image, walkHandler func(o image.Image, x int, y i
 	return nil
 }
 
-func WalkTopo(o image.Image, x int, y int, c color.Color) {
-	// todo: mark every dot
-}
-
 func ImgToFile(img image.Image, outputFilePath string) {
 	picFile2, err := os.Create(outputFilePath)
 	if err != nil {
@@ -109,19 +107,27 @@ func ImgToFile(img image.Image, outputFilePath string) {
 
 func main() {
 
-	oldTopoPath := ""
-	newTopoPath := ""
+	inputPath := ""
+	outputPath := ""
 
-	fOld, err := os.Open(oldTopoPath)
+	flag.StringVar(&inputPath, "i", inputPath, "input path")
+	flag.StringVar(&outputPath, "o", outputPath, "output path")
+	flag.Parse()
+
+	if outputPath == "" {
+		outputPath = "x2-" + inputPath
+	}
+
+	fOld, err := os.Open(inputPath)
 	if err != nil {
-		fmt.Printf("open:%s failed:%v+\n", oldTopoPath, err)
+		fmt.Printf("open:%s failed:%v+\n", inputPath, err)
 		return
 	}
 	defer fOld.Close()
 
 	imgOld, err := png.Decode(fOld)
 	if err != nil {
-		fmt.Printf("png.Decode:%s failed:%v+\n", oldTopoPath, err)
+		fmt.Printf("png.Decode:%s failed:%v+\n", inputPath, err)
 		return
 	}
 
@@ -134,21 +140,45 @@ func main() {
 	ForeachImgDot(imgOld, func(o image.Image, x int, y int, c color.Color) {
 		dotCounter++
 		d := &Dot{x: x, y: y}
-		var dots []*Dot
+		var sideDots []Dot
 		// dotNE
-		dots = d.GetNE()
-		for _, do := range dots {
-			if do.x < 0 || do.y < 0 || do.x >= width || do.y >= height {
-				break
-			}
-		}
+		sideDots = d.GetNE()
+		c = selColors(o, x, y, width, height, sideDots)
+		imgNew.Set(x*2+1, y*2, c)
 		// dotSE
-		oldSEDots := getNeighbors()
+		sideDots = d.GetSE()
+		c = selColors(o, x, y, width, height, sideDots)
+		imgNew.Set(x*2+1, y*2+1, c)
 		// dotSW
+		sideDots = d.GetSW()
+		c = selColors(o, x, y, width, height, sideDots)
+		imgNew.Set(x*2, y*2+1, c)
 		// dotNW
+		sideDots = d.GetNW()
+		c = selColors(o, x, y, width, height, sideDots)
+		imgNew.Set(x*2, y*2, c)
 	})
 
-	ImgToFile(imgNew, newTopoPath)
+	ImgToFile(imgNew, outputPath)
 	fmt.Printf("dotCounter:%d\n", dotCounter)
+
+}
+
+func selColors(o image.Image, x, y int, width, height int, sideDots []Dot) (c color.Color) {
+	var colors []color.Color
+	for _, do := range sideDots {
+		if do.x < 0 || do.y < 0 || do.x >= width || do.y >= height {
+			// out of bound
+			break
+		}
+		colors = append(colors, o.At(do.x, do.y))
+	}
+	if len(colors) == 0 {
+		fmt.Sprintf("no color found from sides, use self\n")
+		c = o.At(x, y)
+	} else {
+		c = colors[rand.Int()%len(colors)]
+	}
+	return c
 
 }
