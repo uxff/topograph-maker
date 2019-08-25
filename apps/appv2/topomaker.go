@@ -466,12 +466,12 @@ func main() {
 	}
 
 	// 随机n个圆圈 累加抬高 输出到m中
-	hills := make([]Hill, *nHills)
-	for ri, _ := range hills {
-		r := &hills[ri]
-		r.x, r.y, r.r, r.h = (rand.Int() % width), (rand.Int() % height), (rand.Int()%(*hillWide) + 1), (rand.Int()%(5) + 2)
-		r.tiltDir, r.tiltLen = rand.Float64()*math.Pi, (rand.Int()%20)+1
-	}
+	//hills := make([]Hill, *nHills)
+	//for ri, _ := range hills {
+	//	r := &hills[ri]
+	//	r.x, r.y, r.r, r.h = (rand.Int() % width), (rand.Int() % height), (rand.Int()%(*hillWide) + 1), (rand.Int()%(5) + 2)
+	//	r.tiltDir, r.tiltLen = rand.Float64()*math.Pi, (rand.Int()%20)+1
+	//}
 
 	// 转换痕迹为ridge 为每个环分配随机半径 输出到m中
 	var ridgeHills []Hill
@@ -683,14 +683,35 @@ func DrawToHtml(w *WaterMap, m *Topomap) {
 	log.Printf("draw to html ok")
 }
 
-func MakeRidge(ridgeLen, ridgeWide, width, height int) []Hill {
+// ridgeLen=count(Hill)
+func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	ridgeHills := make([]Hill, ridgeLen)
-	baseTowardX, baseTowardY := (rand.Int()%width-width/2)/20, (rand.Int()%height-height/2)/20
+	baseTowardX, baseTowardY := (rand.Int()%mWidth-mWidth/2)/20, (rand.Int()%mHeight-mHeight/2)/20
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
 		if ri == 0 {
 			// 第一个
-			r.x, r.y, r.r, r.h = (rand.Int() % width), (rand.Int() % height), (rand.Int()%(ridgeWide) + 1), (rand.Int()%(5) + 2)
+			r.x, r.y, r.r, r.h = (rand.Int() % mWidth), (rand.Int() % mHeight), (rand.Int()%(ridgeWide) + 1), (rand.Int()%(5) + 2)
+		} else {
+			// 其他
+			r.x, r.y, r.r, r.h = ridgeHills[ri-1].x+(rand.Int()%ridgeWide)-ridgeWide/2+baseTowardX, ridgeHills[ri-1].y+(rand.Int()%ridgeWide)-ridgeWide/2+baseTowardY, (rand.Int()%(ridgeWide) + 1), (rand.Int()%(5) + 2)
+		}
+	}
+
+	return ridgeHills
+}
+
+// 随机选择一个ridge增长方向 ridgeWide=hillStep
+func MakeRidge2(startX, startY int, ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
+	ridgeHills := make([]Hill, ridgeLen)
+	baseTowardX, baseTowardY := (rand.Int()%mWidth-mWidth/2)/20, (rand.Int()%mHeight-mHeight/2)/20
+	incrX ,incrY := (rand.Int()%ridgeWide)-ridgeWide/2, (rand.Int()%ridgeWide)-ridgeWide/2
+	for ri := 0; ri < int(ridgeLen); ri++ {
+		r := &ridgeHills[ri]
+		if ri == 0 {
+			// 第一个
+			//r.x, r.y, r.r, r.h = (rand.Int() % mWidth), (rand.Int() % mHeight), (rand.Int()%(ridgeWide) + 1), (rand.Int()%(5) + 2)
+			r.x, r.y, r.r, r.h = startX, startY, (rand.Int()%(ridgeWide) + 1), (rand.Int()%(5) + 2)
 		} else {
 			// 其他
 			r.x, r.y, r.r, r.h = ridgeHills[ri-1].x+(rand.Int()%ridgeWide)-ridgeWide/2+baseTowardX, ridgeHills[ri-1].y+(rand.Int()%ridgeWide)-ridgeWide/2+baseTowardY, (rand.Int()%(ridgeWide) + 1), (rand.Int()%(5) + 2)
