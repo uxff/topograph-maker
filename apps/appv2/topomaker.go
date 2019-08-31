@@ -466,12 +466,12 @@ func main() {
 	}
 
 	// 随机n个圆圈 累加抬高 输出到m中
-	//hills := make([]Hill, *nHills)
-	//for ri, _ := range hills {
-	//	r := &hills[ri]
-	//	r.x, r.y, r.r, r.h = (rand.Int() % width), (rand.Int() % height), (rand.Int()%(*hillWide) + 1), (rand.Int()%(5) + 2)
-	//	r.tiltDir, r.tiltLen = rand.Float64()*math.Pi, (rand.Int()%20)+1
-	//}
+	hills := make([]Hill, *nHills)
+	for ri, _ := range hills {
+		r := &hills[ri]
+		r.x, r.y, r.r, r.h = (rand.Int() % width), (rand.Int() % height), (rand.Int()%(*hillWide) + 1), (rand.Int()%(5) + 2)
+		r.tiltDir, r.tiltLen = rand.Float64()*math.Pi, (rand.Int()%20)+1
+	}
 
 	// 转换痕迹为ridge 为每个环分配随机半径 输出到m中
 	var ridgeHills []Hill
@@ -705,7 +705,7 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 func MakeRidge2(startX, startY int, ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	ridgeHills := make([]Hill, ridgeLen)
 	baseTowardX, baseTowardY := (rand.Int()%mWidth-mWidth/2)/20, (rand.Int()%mHeight-mHeight/2)/20
-	incrX ,incrY := (rand.Int()%ridgeWide)-ridgeWide/2, (rand.Int()%ridgeWide)-ridgeWide/2
+	//incrX, incrY := (rand.Int()%ridgeWide)-ridgeWide/2, (rand.Int()%ridgeWide)-ridgeWide/2
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
 		if ri == 0 {
