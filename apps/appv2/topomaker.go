@@ -18,10 +18,10 @@ import (
 	"sync"
 	"time"
 
-	drawer "github.com/uxff/topograph-maker/drawer"
+	"github.com/uxff/topograph-maker/drawer"
 )
 
-const colorTplFile = "../image/color-tpl.png"
+const colorTplFile = "./image/color-tpl.png"
 
 // 方案二(un done) 计算好地形场向量 没有流量向量
 // 随机撒水珠 水滴会移动 移动的时候会动态影响周边的其他水滴
@@ -41,8 +41,8 @@ type Droplet struct {
 type WaterDot struct {
 	x       float32 // 将不变化 =Topomap[x,y] +(0.5, 0.5)
 	y       float32
-	xPower  float32 // v2 根据地形得出 初始化后不变(地形改变则会变) 基于Atan2 范围(-1,1)
-	yPower  float32 // v2 根据地形得出 初始化后不变(地形改变则会变)
+	xPower  float32 // x方向速度 v2 根据地形得出 初始化后不变(地形改变则会变) 基于Atan2 范围(-1,1)
+	yPower  float32 // y方向速度 v2 根据地形得出 初始化后不变(地形改变则会变)
 	h       int     // 积水高度，产生积水不参与流动，流动停止 // v2将由水滴实体代替该变量
 	q       int     // 流量 0=无 历史流量    //
 	xPowerQ float32 // v2 根据周围流量算出 每次update变化 基于Atan2 范围(-1,1)
@@ -54,7 +54,7 @@ type Topomap struct {
 	height int
 }
 type WaterMap struct {
-	data   []WaterDot
+	data   []WaterDot //
 	width  int
 	height int
 }
@@ -124,7 +124,7 @@ func (w *WaterMap) UpdateVectorByQuantity(m *Topomap, ring int, powerRate float3
 	}
 }
 
-func UpdateDroplets(times int, drops []*Droplet, m *Topomap, w *WaterMap) []*Droplet {
+func DropletsMove(times int, drops []*Droplet, m *Topomap, w *WaterMap) []*Droplet {
 	for i := 1; i <= times; i++ {
 		wg := &sync.WaitGroup{}
 		for _, d := range drops {
@@ -145,6 +145,7 @@ func UpdateDroplets(times int, drops []*Droplet, m *Topomap, w *WaterMap) []*Dro
 	return drops
 }
 
+// 将坐标是0的清理出数组
 func ClearDroplets(drops []*Droplet) []*Droplet {
 	newDrops := make([]*Droplet, 0)
 	for idx, d := range drops {
@@ -208,6 +209,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap) {
 		return
 	}
 
+	// 更新watermap前加锁
 	mu := sync.Mutex{}
 	mu.Lock()
 	defer mu.Unlock()
@@ -271,20 +273,20 @@ func (d *Droplet) MoveByFallPower(m *Topomap, w *WaterMap) {
 	}
 }
 
-func (this *Topomap) Init(width int, height int) {
-	this.data = make([]uint8, width*height)
-	this.width = width
-	this.height = height
+func (m *Topomap) Init(width int, height int) {
+	m.data = make([]uint8, width*height)
+	m.width = width
+	m.height = height
 }
-func (this *WaterMap) Init(width int, height int) {
-	this.data = make([]WaterDot, width*height)
-	this.width = width
-	this.height = height
+func (w *WaterMap) Init(width int, height int) {
+	w.data = make([]WaterDot, width*height)
+	w.width = width
+	w.height = height
 	// 把点的实际基点摆在中间
-	for x := 0; x < this.width; x++ {
-		for y := 0; y < this.height; y++ {
-			this.data[x+y*this.width].x = float32(x) + 0.5
-			this.data[x+y*this.width].y = float32(y) + 0.5
+	for x := 0; x < w.width; x++ {
+		for y := 0; y < w.height; y++ {
+			w.data[x+y*w.width].x = float32(x) + 0.5
+			w.data[x+y*w.width].y = float32(y) + 0.5
 		}
 	}
 }
@@ -448,6 +450,7 @@ func main() {
 	var zoom = flag.Int("zoom", 1, "zoom of out put image")
 	var addr = flag.String("addr", "", "addr of http server to listen and to show img on html(deprecated)")
 	var riverArrowScale = flag.Float64("river-arrow-scale", 0.8, "river arrow scale")
+	var bDrawField = flag.Bool("draw-field", false, "draw feild vecor in topomap")
 
 	flag.Parse()
 
@@ -528,13 +531,13 @@ func main() {
 		drops[di] = MakeDroplet(&w)
 	}
 
-	drops = UpdateDroplets(*times, drops, &m, &w)
+	drops = DropletsMove(*times, drops, &m, &w)
 	log.Printf("update done. times=%d num drops=%d->%d", *times, *dropNum, len(drops))
 
 	// then draw
 	img := image.NewRGBA(image.Rect(0, 0, width**zoom, height**zoom))
 
-	DrawToImg(img, &m, &w, maxColor, *zoom, *riverArrowScale, drops)
+	DrawToImg(img, &m, &w, maxColor, *zoom, *riverArrowScale, drops, *bDrawField)
 
 	wgm := sync.WaitGroup{}
 	if *addr != "" {
@@ -564,7 +567,7 @@ func main() {
 
 }
 
-func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom int, riverArrowScale float64, drops []*Droplet) {
+func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom int, riverArrowScale float64, drops []*Droplet, bDrawField bool) {
 	height := m.height
 	width := m.width
 	var tmpColor float32 = 1
@@ -615,23 +618,25 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	}
 
 	// 绘制流动 在v2下相当于场
-	for di, dot := range w.data {
-		// 绘制当前点 如果是源头 则绘制白色
-		if dot.xPower != 0.0 || dot.yPower != 0.0 {
-			// 计算相对比例尺的高度
-			tmpLevel := int(m.data[di]) + dot.h
-			tmpLevel = int(float32(cslen*tmpLevel) / maxColor)
-			// 防止越界
-			if tmpLevel >= len(cs) {
-				tmpLevel = len(cs) - 1
-			}
-			if tmpLevel < 0 {
-				tmpLevel = 0
-			}
+	if bDrawField {
+		for di, dot := range w.data {
+			// 绘制当前点 如果是源头 则绘制白色
+			if dot.xPower != 0.0 || dot.yPower != 0.0 {
+				// 计算相对比例尺的高度
+				tmpLevel := int(m.data[di]) + dot.h
+				tmpLevel = int(float32(cslen*tmpLevel) / maxColor)
+				// 防止越界
+				if tmpLevel >= len(cs) {
+					tmpLevel = len(cs) - 1
+				}
+				if tmpLevel < 0 {
+					tmpLevel = 0
+				}
 
-			// 绘制流动方向 考虑缩放
-			tmpColor := cs[tmpLevel]
-			lineTo(img, int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2, int(dot.x)*zoom+zoom/2+int(float32(zoom)*dot.xPower), int(dot.y)*zoom+zoom/2+int(float32(zoom)*dot.yPower), color.RGBA{0, 0, 0xFF, 0xFF}, tmpColor, riverArrowScale)
+				// 绘制流动方向 考虑缩放
+				tmpColor := cs[tmpLevel]
+				lineTo(img, int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2, int(dot.x)*zoom+zoom/2+int(float32(zoom)*dot.xPower), int(dot.y)*zoom+zoom/2+int(float32(zoom)*dot.yPower), color.RGBA{0, 0, 0xFF, 0xFF}, tmpColor, riverArrowScale)
+			}
 		}
 	}
 	// 绘制droplets
@@ -732,3 +737,35 @@ func ImgToFile(outputFilePath string, img *image.RGBA, format string) {
 		log.Println("png.Encode error:", err)
 	}
 }
+
+//func (m *Topomap)MarshalJSON() ([]byte, error) {
+//	outputBuf := []byte{}
+//	return outputBuf, nil
+//}
+//
+//func (m *Topomap)UnmarshalJSON(inputBuf []byte) error {
+//
+//	return nil
+//}
+
+// todo save map, load map
+//func SaveMap(m *Topomap, filepath string) error {
+//	b, err := json.Marshal(m)
+//	if err != nil {
+//		return err
+//	}
+//
+//	f, err := os.OpenFile(filepath, os.O_CREATE|os.O_RDWR, os.ModePerm)
+//	if err != nil {
+//		return err
+//	}
+//	defer f.Close()
+//
+//	f.Write(b)
+//
+//	return nil
+//}
+//
+//func LoadMap(filepath string) (*Topomap, error) {
+//	return nil, nil
+//}
