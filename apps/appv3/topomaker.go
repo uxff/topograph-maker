@@ -269,7 +269,7 @@ func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 
 		// 越界判断
 		if int(tmpX) < 0 || int(tmpX) > w.width-1 || int(tmpY) < 0 || int(tmpY) > w.height-1 {
-			log.Printf("droplet slip out of bound(x=%f,y=%f). stop move.", tmpX, tmpY)
+			log.Printf("droplet slip out of bound(x=%f,y=%f). stop moving.", tmpX, tmpY)
 			return
 		}
 
@@ -798,17 +798,25 @@ func ImgToFile(outputFilePath string, img *image.RGBA, format string) {
 //	return nil, nil
 //}
 
+const (
+	AttractPowerDecay = 0.1
+)
+
 // 会改变d的方向 即会改变 vx,vy 值
 func (d *Droplet) CloseTo(target *Droplet, distSquare float32) {
 	//
-	d.vx = (d.vx + (target.x-d.x)*float32(math.Sqrt(float64(distSquare)))*0.1) / 2
-	d.vy = (d.vy + (target.y-d.y)*float32(math.Sqrt(float64(distSquare)))*0.1) / 2
+	d.vx = (d.vx + (target.x-d.x)*float32(math.Sqrt(float64(distSquare)))*AttractPowerDecay) / 2
+	d.vy = (d.vy + (target.y-d.y)*float32(math.Sqrt(float64(distSquare)))*AttractPowerDecay) / 2
 }
+
+const (
+	MinDistToDeduct = 2
+)
 
 func (d *Droplet) DeductSpeed() {
 	vSquare := d.vx*d.vx + d.vy*d.vy
-	if vSquare > 2 {
-		scale := float32(math.Sqrt(float64(vSquare / 2)))
+	if vSquare > MinDistToDeduct {
+		scale := float32(math.Sqrt(float64(vSquare / MinDistToDeduct)))
 		d.vx, d.vy = d.vx/scale, d.vy/scale
 	}
 }
