@@ -617,29 +617,29 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	}
 
 	// 绘制WaterMap
-	tmpLakeColor := color.RGBA{0, 0xAA, 0xAA, 0xFF}     // alpha=255 表示不透明 青色 有积水
-	tmpLakeColor2 := color.RGBA{0xd0, 0x46, 0x93, 0xFF} //#d04693    // purple 有流量的
-	tmpLakeColor3 := color.RGBA{0xa0, 0xd2, 0xeb, 0xFF} //#b0d2eb    // blue-gray // 流量痕迹
+	tmpLakeColor := color.RGBA{0, 0xEE, 0xEE, 0xFF}     // alpha=255 表示不透明 青色 有积水
+	tmpLakeColor3 := color.RGBA{0xd0, 0x46, 0x93, 0xFF} //#d04693    // purple 有流量的
+	tmpLakeColor2 := color.RGBA{0xa0, 0xd2, 0xeb, 0xFF} //#b0d2eb    // blue-gray // 流量痕迹
 	//tmpColor4 := color.RGBA{66, 50, 209, 0xFF}          //    // 蓝紫色 // 水滴
 	tmpColor4 := color.RGBA{66, 0xFF, 0xFF, 0xFF} //    // 蓝紫色 // 水滴
 	for _, dot := range w.data {
 		// 绘制积水 点周围绘制
 		if dot.h > 0 {
-			img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2, tmpLakeColor) // self
+			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2, tmpLakeColor) // self
 			img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2+1, tmpLakeColor)
-			img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2, tmpLakeColor)
-			img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
-			img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
-			img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
-			img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2, tmpLakeColor)
-			img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2+1, tmpLakeColor)
-			img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2+1, tmpLakeColor)
+			//img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2, tmpLakeColor)
+			//img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
+			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
+			//img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
+			//img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2, tmpLakeColor)
+			//img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2+1, tmpLakeColor)
+			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2+1, tmpLakeColor)
 		}
 		if dot.q > 0 {
 			img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2, tmpLakeColor2)
-			img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2-1, tmpLakeColor2)
-			img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2, tmpLakeColor2)
-			img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2+1, tmpLakeColor2)
+			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2-1, tmpLakeColor2)
+			//img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2, tmpLakeColor2)
+			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2+1, tmpLakeColor2)
 		}
 	}
 
@@ -668,12 +668,13 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	// 绘制droplets
 	for _, drop := range drops {
 		for _, dxi := range drop.hisway {
-			img.Set(int(dxi%width)*zoom+zoom/2+1, int(dxi/width)*zoom+zoom/2+1, tmpLakeColor3)
-			img.Set(int(dxi%width)*zoom+zoom/2+1, int(dxi/width)*zoom+zoom/2-1, tmpLakeColor3)
-			img.Set(int(dxi%width)*zoom+zoom/2-1, int(dxi/width)*zoom+zoom/2-1, tmpLakeColor3)
-			img.Set(int(dxi%width)*zoom+zoom/2-1, int(dxi/width)*zoom+zoom/2+1, tmpLakeColor3)
+			img.Set(int(dxi%width)*zoom+zoom/2, int(dxi/width)*zoom+zoom/2, tmpLakeColor3)
+			//img.Set(int(dxi%width)*zoom+zoom/2+1, int(dxi/width)*zoom+zoom/2+1, tmpLakeColor3)
+			//img.Set(int(dxi%width)*zoom+zoom/2+1, int(dxi/width)*zoom+zoom/2-1, tmpLakeColor3)
+			//img.Set(int(dxi%width)*zoom+zoom/2-1, int(dxi/width)*zoom+zoom/2-1, tmpLakeColor3)
+			//img.Set(int(dxi%width)*zoom+zoom/2-1, int(dxi/width)*zoom+zoom/2+1, tmpLakeColor3)
 		}
-		img.Set(int(drop.x)*zoom+zoom/2-1, int(drop.y)*zoom+zoom/2+1, tmpColor4)
+		img.Set(int(drop.x)*zoom+zoom/2, int(drop.y)*zoom+zoom/2, tmpColor4)
 	}
 	// 绘制颜色模板
 	for i := 0; i < len(cs); i++ {
