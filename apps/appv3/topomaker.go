@@ -188,14 +188,14 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	if w.data[oldIdx].xPower == 0 && w.data[oldIdx].yPower == 0 {
 		//log.Printf("no field power, try slip(x=%f,y=%f)", d.x, d.y)
 		// 自己生速度
-		d.MoveByFallPower(m, w)
+		d.GenVeloByFallPower(m, w)
 		//return
 	}
 
 	// 距离平方在2以内的WaterDot有吸引力
 	for _, di := range drops {
 		distSquare := (di.x-d.x)*(di.x-d.x) + (di.y-d.y)*(di.y-d.y)
-		if distSquare > 8.0 {
+		if distSquare < 8.0 {
 			// wi 是在范围sqrt(8)以内
 			d.CloseTo(di, distSquare) // 靠近
 		}
@@ -245,10 +245,10 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 }
 
 // 根据落差能量移动 类似滑行 slip todo:浮动 左右摆动(撒欢)
-func (d *Droplet) MoveByFallPower(m *Topomap, w *WaterMap) {
-	mu := sync.Mutex{}
-	mu.Lock()
-	defer mu.Unlock()
+func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
+	//mu := sync.Mutex{}
+	//mu.Lock()
+	//defer mu.Unlock()
 
 	if d.fallPower > 0 {
 		oldIdx := int(d.x) + int(d.y)*w.width
