@@ -1,5 +1,6 @@
 /*
 	usage: time ./topomaker -w 800 -h 800 -hill 200 -hill-wide 200 -ridge 2 -ridge-wide 50 -times 1000 -dropnum 100 -zoom 5
+	./topomaker.exe --zoom 3 -h 500 -w 500 --hill 0 --ridge 50 --ridge-len 50 --ridge-wide 50 --dropnum 100 --times 1000
     todo: table lize with http server
 */
 package main
@@ -168,9 +169,10 @@ func ClearDroplets(drops []*Droplet) []*Droplet {
 func MakeDroplet(w *WaterMap) *Droplet {
 	idx := rand.Int() % len(w.data)
 	d := Droplet{
-		x:      float32(idx%w.width) + 0.5,
-		y:      float32(idx/w.width) + 0.5,
-		hisway: []int{idx},
+		x:         float32(idx%w.width) + 0.5,
+		y:         float32(idx/w.width) + 0.5,
+		hisway:    []int{idx},
+		fallPower: 2,
 	}
 
 	w.data[idx].h++
@@ -259,11 +261,12 @@ func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 	//defer mu.Unlock()
 
 	if d.fallPower > 0 {
+		//log.Printf("will go by self fall power")
 		oldIdx := int(d.x) + int(d.y)*w.width
-		if oldIdx >= len(w.data) {
-			log.Printf("oldIdx(%d) out of data. stop it.", oldIdx)
-			return
-		}
+		//if oldIdx >= len(w.data) {
+		//	log.Printf("oldIdx(%d) out of data. stop it.", oldIdx)
+		//	return
+		//}
 
 		// 要和PI有关系 否则都向右面走
 		tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
