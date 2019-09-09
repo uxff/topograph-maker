@@ -67,6 +67,7 @@ type WaterMap struct {
 // @param Topomap m is basic topomap
 // @param int ring 表示计算到几环 默认2环
 func (w *WaterMap) AssignVector(m *Topomap, ring int) {
+	var allX, allY float32
 	for idx, curDot := range w.data {
 		var xPower, yPower int // xPower, yPower 单位为1
 		// 2nd ring
@@ -90,8 +91,12 @@ func (w *WaterMap) AssignVector(m *Topomap, ring int) {
 		if xPower != 0 || yPower != 0 {
 			thedir := math.Atan2(float64(yPower), float64(xPower))
 			w.data[idx].xPower, w.data[idx].yPower = float32(math.Cos(thedir)), float32(math.Sin(thedir))
+			allX += w.data[idx].xPower
+			allY += w.data[idx].yPower
 		}
 	}
+
+	log.Printf("after AssignVector, allX, allY = %f, %f", allX, allY)
 }
 
 // 按照周围流量更新场向量
@@ -257,10 +262,11 @@ func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 			return
 		}
 
-		tmpDir := rand.Float64() - rand.Float64()
-		fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
+		// 要和PI有关系 否则都向右面走
+		tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
+		fx, fy := float32(math.Cos(tmpDir)), -float32(math.Sin(tmpDir))
 
-		d.vx, d.vy = d.vx+fx/2.0, d.vy+fy/2.0
+		d.vx, d.vy = d.vx+fx/4.0, d.vy+fy/4.0
 		d.fallPower--
 		return
 
@@ -799,7 +805,8 @@ func ImgToFile(outputFilePath string, img *image.RGBA, format string) {
 //}
 
 const (
-	AttractPowerDecay = 0.1
+	// 水滴之间的吸引力度 类似于万有引力常量
+	AttractPowerDecay = 0.5
 )
 
 // 会改变d的方向 即会改变 vx,vy 值
@@ -810,6 +817,7 @@ func (d *Droplet) CloseTo(target *Droplet, distSquare float32) {
 }
 
 const (
+	// 距离平方超过这个值 就会被等比例缩减速度 但是保持方向
 	MinDistToDeduct = 2
 )
 
