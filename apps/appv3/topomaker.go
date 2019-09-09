@@ -189,10 +189,13 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 
 	d.vx, d.vy = d.vx+w.data[oldIdx].xPower, d.vy+w.data[oldIdx].yPower
 
+	// 地形场加速
+	//d.vx, d.vy = (d.vx+w.data[oldIdx].xPower)/2, (d.vy+w.data[oldIdx].yPower)/2
+
 	// 没有场 可撒欢
 	if w.data[oldIdx].xPower == 0 && w.data[oldIdx].yPower == 0 {
 		//log.Printf("no field power, try slip(x=%f,y=%f)", d.x, d.y)
-		// 自己生速度
+		// 自己生速度 比较浪
 		d.GenVeloByFallPower(m, w)
 		//return
 	}
@@ -201,7 +204,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	for _, di := range drops {
 		distSquare := (di.x-d.x)*(di.x-d.x) + (di.y-d.y)*(di.y-d.y)
 		if distSquare < 8.0 {
-			// wi 是在范围sqrt(8)以内
+			// di 是在范围sqrt(8)以内的水滴
 			d.CloseTo(di, distSquare) // 靠近
 		}
 	}
@@ -225,6 +228,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	// 无力场，待在原地
 	if newIdx == oldIdx {
 		//log.Printf("no field power. stay here.")
+		w.data[oldIdx].q++ // 流出，才算流量
 		return
 	}
 
@@ -236,7 +240,6 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	// droplet no need lock
 	//d.x, d.y = tmpX, tmpY
 	d.hisway = append(d.hisway, newIdx)
-	//d.vx, d.vy = (d.vx+w.data[oldIdx].xPower)/2, (d.vy+w.data[oldIdx].yPower)/2
 	d.fallPower += int(m.data[oldIdx]-m.data[newIdx]) * 100
 
 	// 更新watermap前加锁
@@ -264,7 +267,7 @@ func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 
 		// 要和PI有关系 否则都向右面走
 		tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
-		fx, fy := float32(math.Cos(tmpDir)), -float32(math.Sin(tmpDir))
+		fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
 
 		d.vx, d.vy = d.vx+fx/4.0, d.vy+fy/4.0
 		d.fallPower--
@@ -818,7 +821,7 @@ func (d *Droplet) CloseTo(target *Droplet, distSquare float32) {
 
 const (
 	// 距离平方超过这个值 就会被等比例缩减速度 但是保持方向
-	MinDistToDeduct = 2
+	MinDistToDeduct = 3
 )
 
 func (d *Droplet) DeductSpeed() {
@@ -826,5 +829,6 @@ func (d *Droplet) DeductSpeed() {
 	if vSquare > MinDistToDeduct {
 		scale := float32(math.Sqrt(float64(vSquare / MinDistToDeduct)))
 		d.vx, d.vy = d.vx/scale, d.vy/scale
+		log.Printf("velo squashed, vSquare:%f", vSquare)
 	}
 }
