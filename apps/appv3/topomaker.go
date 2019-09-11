@@ -272,7 +272,7 @@ func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 		tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
 		fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
 
-		d.vx, d.vy = d.vx+fx/4.0, d.vy+fy/4.0
+		d.vx, d.vy = d.vx+fx/8.0, d.vy+fy/8.0
 		d.fallPower--
 		return
 
@@ -630,10 +630,11 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 
 	// 绘制WaterMap
 	tmpLakeColor := color.RGBA{0, 0xEE, 0xEE, 0xFF}     // alpha=255 表示不透明 青色 有积水
-	tmpLakeColor3 := color.RGBA{0xd0, 0x46, 0x93, 0xFF} //#d04693    // purple 有流量的
 	tmpLakeColor2 := color.RGBA{0xa0, 0xd2, 0xeb, 0xFF} //#b0d2eb    // blue-gray // 流量痕迹
 	//tmpColor4 := color.RGBA{66, 50, 209, 0xFF}          //    // 蓝紫色 // 水滴
-	tmpColor4 := color.RGBA{66, 0xFF, 0xFF, 0xFF} //    // 蓝紫色 // 水滴
+	tmpLakeColor3 := color.RGBA{0x99, 0xFF, 0xFF, 0xFF} //#亮蓝色    // 水滴痕迹
+	tmpColor4 := color.RGBA{0x22, 0xFF, 0xFF, 0xFF} //    // 暗青色 // 水滴最终位置
+	//tmpColor5 := color.CMYK{100, 10, 10, 0}
 	for _, dot := range w.data {
 		// 绘制积水 点周围绘制
 		if dot.h > 0 {
@@ -651,7 +652,7 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 			img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2, tmpLakeColor2)
 			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2-1, tmpLakeColor2)
 			//img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2, tmpLakeColor2)
-			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2+1, tmpLakeColor2)
+			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2+1, tmpColor5)
 		}
 	}
 
