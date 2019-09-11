@@ -211,7 +211,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	}
 
 	// 将超出的速度限制成标准速度
-	d.DeductSpeed()
+	d.DamponSpeed()
 
 	// 场速度与自身速度的平均值
 	tmpX := d.x + d.vx // todo:精度损失风险
@@ -253,7 +253,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	w.data[oldIdx].q++ // 流出，才算流量
 }
 
-// 根据落差能量移动 类似滑行 slip todo:浮动 左右摆动(撒欢)
+// 根据落差能量移动 包括位置浮动和速度浮动
 func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 	//mu := sync.Mutex{}
 	//mu.Lock()
@@ -262,18 +262,18 @@ func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 	if d.fallPower > 0 {
 		tmpRoll := rand.Float32()
 		// 小于一定的几率才执行方向浮动
-		if tmpRoll < 0.1 {
+		if tmpRoll < 0.5 {
 			// 要和PI有关系 否则都向右面走
 			tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
 			fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
-			d.vx, d.vy = d.vx+fx/20.0, d.vy+fy/20.0
+			d.vx, d.vy = d.vx+fx/10.0, d.vy+fy/10.0
 		}
 
 		// 在一定几率下 位移浮动
 		if tmpRoll < 0.5 {
 			tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
 			fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
-			d.x, d.y = d.x+fx/20.0, d.y+fy/20.0
+			d.x, d.y = d.x+fx/2.0, d.y+fy/2.0
 		}
 
 		//log.Printf("drop playself fx,fy=%f,%f", fx, fy)
@@ -802,7 +802,7 @@ const (
 	MinDistToDeduct = 3
 )
 
-func (d *Droplet) DeductSpeed() {
+func (d *Droplet) DamponSpeed() {
 	vSquare := d.vx*d.vx + d.vy*d.vy
 	if vSquare > MinDistToDeduct {
 		scale := float32(math.Sqrt(float64(vSquare / MinDistToDeduct)))
