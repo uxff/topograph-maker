@@ -68,7 +68,6 @@ type WaterMap struct {
 // @param Topomap m is basic topomap
 // @param int ring 表示计算到几环 默认2环
 func (w *WaterMap) AssignVector(m *Topomap, ring int) {
-	var allX, allY float32
 	for idx, curDot := range w.data {
 		var xPower, yPower int // xPower, yPower 单位为1
 		// 2nd ring
@@ -92,12 +91,8 @@ func (w *WaterMap) AssignVector(m *Topomap, ring int) {
 		if xPower != 0 || yPower != 0 {
 			thedir := math.Atan2(float64(yPower), float64(xPower))
 			w.data[idx].xPower, w.data[idx].yPower = float32(math.Cos(thedir)), float32(math.Sin(thedir))
-			allX += w.data[idx].xPower
-			allY += w.data[idx].yPower
 		}
 	}
-
-	log.Printf("after AssignVector, allX, allY = %f, %f", allX, allY)
 }
 
 // 按照周围流量更新场向量
@@ -143,7 +138,7 @@ func DropletsMove(times int, drops []*Droplet, m *Topomap, w *WaterMap) []*Dropl
 
 		wg.Wait()
 		if i%100 == 0 {
-			w.UpdateVectorByQuantity(m, 2, 0.1)
+			w.UpdateVectorByQuantity(m, 2, 0.2)
 			drops = ClearDroplets(drops)
 			log.Printf("drops cleard len=%d", len(drops))
 		}
@@ -176,6 +171,10 @@ func MakeDroplet(w *WaterMap) *Droplet {
 	}
 
 	w.data[idx].h++
+
+	thedir := rand.Float64() * math.Pi * 2
+	d.vx, d.vy = float32(math.Cos(thedir))/2, float32(math.Sin(thedir))/2
+
 	//w.data = append(w.data, d)
 	//w.data[idx].q++ //初次不算流量
 	return &d
@@ -196,9 +195,9 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 
 	// 没有场 可撒欢
 	if w.data[oldIdx].xPower == 0 && w.data[oldIdx].yPower == 0 {
-		//log.Printf("no field power, try slip(x=%f,y=%f)", d.x, d.y)
 		// 自己生速度 比较浪
 		d.GenVeloByFallPower(m, w)
+		log.Printf("no field power, after play self(x=%f,y=%f, vx,vy=%f,%f) fallPower=%d", d.x, d.y, d.vx, d.vy, d.fallPower)
 		//return
 	}
 
@@ -261,50 +260,25 @@ func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 	//defer mu.Unlock()
 
 	if d.fallPower > 0 {
-		//log.Printf("will go by self fall power")
-		oldIdx := int(d.x) + int(d.y)*w.width
-		//if oldIdx >= len(w.data) {
-		//	log.Printf("oldIdx(%d) out of data. stop it.", oldIdx)
-		//	return
-		//}
+		tmpRoll := rand.Float32()
+		// 小于一定的几率才执行方向浮动
+		if tmpRoll < 0.1 {
+			// 要和PI有关系 否则都向右面走
+			tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
+			fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
+			d.vx, d.vy = d.vx+fx/20.0, d.vy+fy/20.0
+		}
 
-		// 要和PI有关系 否则都向右面走
-		tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
-		fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
+		// 在一定几率下 位移浮动
+		if tmpRoll < 0.5 {
+			tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
+			fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
+			d.x, d.y = d.x+fx/20.0, d.y+fy/20.0
+		}
 
-		d.vx, d.vy = d.vx+fx/8.0, d.vy+fy/8.0
+		//log.Printf("drop playself fx,fy=%f,%f", fx, fy)
 		d.fallPower--
 		return
-
-		tmpX := d.x + d.vx + fx/2.0 // todo:精度损失风险
-		tmpY := d.y + d.vy + fy/2.0
-
-		// 越界判断
-		if int(tmpX) < 0 || int(tmpX) > w.width-1 || int(tmpY) < 0 || int(tmpY) > w.height-1 {
-			log.Printf("droplet slip out of bound(x=%f,y=%f). stop moving.", tmpX, tmpY)
-			return
-		}
-
-		newIdx := int(tmpX) + int(tmpY)*w.width
-		// 无力场，待在原地
-		if newIdx == oldIdx {
-			//log.Printf("no field power. stay here.")
-			return
-		}
-
-		if newIdx > w.width*w.height {
-			log.Printf("newIdx(%d) out of data range, ignore", newIdx)
-			return
-		}
-
-		// droplet no need lock
-		d.x, d.y = tmpX, tmpY
-		d.hisway = append(d.hisway, newIdx)
-		d.fallPower--
-
-		w.data[oldIdx].h--
-		w.data[newIdx].h++
-		w.data[oldIdx].q++ // 流出，才算流量
 	}
 }
 
@@ -633,7 +607,7 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	tmpLakeColor2 := color.RGBA{0xa0, 0xd2, 0xeb, 0xFF} //#b0d2eb    // blue-gray // 流量痕迹
 	//tmpColor4 := color.RGBA{66, 50, 209, 0xFF}          //    // 蓝紫色 // 水滴
 	tmpLakeColor3 := color.RGBA{0x99, 0xFF, 0xFF, 0xFF} //#亮蓝色    // 水滴痕迹
-	tmpColor4 := color.RGBA{0x22, 0xFF, 0xFF, 0xFF} //    // 暗青色 // 水滴最终位置
+	tmpColor4 := color.RGBA{0x22, 0xFF, 0xFF, 0xFF}     //    // 暗青色 // 水滴最终位置
 	//tmpColor5 := color.CMYK{100, 10, 10, 0}
 	for _, dot := range w.data {
 		// 绘制积水 点周围绘制
@@ -819,8 +793,8 @@ const (
 // 会改变d的方向 即会改变 vx,vy 值
 func (d *Droplet) CloseTo(target *Droplet, distSquare float32) {
 	//
-	d.vx = (d.vx + (target.x-d.x)*float32(math.Sqrt(float64(distSquare)))*AttractPowerDecay) / 2
-	d.vy = (d.vy + (target.y-d.y)*float32(math.Sqrt(float64(distSquare)))*AttractPowerDecay) / 2
+	d.vx = d.vx + (target.x-d.x)*float32(math.Sqrt(float64(distSquare)))*AttractPowerDecay/2
+	d.vy = d.vy + (target.y-d.y)*float32(math.Sqrt(float64(distSquare)))*AttractPowerDecay/2
 }
 
 const (
