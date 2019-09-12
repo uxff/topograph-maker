@@ -130,10 +130,10 @@ func DropletsMove(times int, drops []*Droplet, m *Topomap, w *WaterMap) []*Dropl
 		wg := &sync.WaitGroup{}
 		for _, d := range drops {
 			wg.Add(1)
-			go func(d *Droplet) {
-				d.Move(m, w, drops)
+			go func(d *Droplet, step int) {
+				d.Move(m, w, drops, step)
 				wg.Done()
-			}(d)
+			}(d, i)
 		}
 
 		wg.Wait()
@@ -174,14 +174,11 @@ func MakeDroplet(w *WaterMap) *Droplet {
 
 	thedir := rand.Float64() * math.Pi * 2
 	d.vx, d.vy = float32(math.Cos(thedir))/2, float32(math.Sin(thedir))/2
-
-	//w.data = append(w.data, d)
-	w.data[idx].h++ //初次不算流量
 	return &d
 }
 
 // 只更新WaterMap中的场 不更新里面的坐标
-func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
+func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet, step int) {
 	oldIdx := int(d.x) + int(d.y)*w.width
 	if oldIdx > len(w.data) || oldIdx < 0 {
 		log.Printf("oldIdx(%d) out of w.data. stop it.", oldIdx)
@@ -194,10 +191,11 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	// 地形场加速
 	//d.vx, d.vy = (d.vx+w.data[oldIdx].xPower)/2, (d.vy+w.data[oldIdx].yPower)/2
 
-	// 距离平方在2以内的WaterDot有吸引力
-	for _, di := range drops {
+	// 距离平方在2以内的WaterDot有吸引力 // todo 使用分层数组
+	for i := 0; i < len(drops); i += 4 {
+		di := drops[i+((step)%4)] // 几率变成4分之1 但是不会重复，会轮询
 		distSquare := (di.x-d.x)*(di.x-d.x) + (di.y-d.y)*(di.y-d.y)
-		if distSquare < 8.0 {
+		if distSquare < 9.0 {
 			// di 是在范围sqrt(8)以内的水滴
 			d.CloseTo(di, distSquare) // 靠近
 		}
@@ -248,14 +246,8 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	d.x, d.y = tmpX, tmpY
 	d.fallPower += int(m.data[oldIdx]-m.data[newIdx]) * 10
 
-	// 更新watermap前加锁
-	//mu := sync.Mutex{}
-	//mu.Lock()
-	//defer mu.Unlock()
-
 	w.data[oldIdx].h--
 	w.data[newIdx].h++
-	//w.data[oldIdx].q++ // 流出，才算流量
 }
 
 // 根据落差能量移动 包括位置浮动和速度浮动 只更改droplet
@@ -807,7 +799,7 @@ func (d *Droplet) CloseTo(target *Droplet, distSquare float32) {
 
 const (
 	// 距离平方超过这个值 就会被等比例缩减速度 但是保持方向
-	MinDistToReduce = 2.25
+	MinDistToReduce = 2
 )
 
 func (d *Droplet) ReduceSpeed() {
