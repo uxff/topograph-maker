@@ -40,14 +40,14 @@ type Droplet struct {
 
 // 将变成固定不移动 记录场 被流动水雕刻
 type WaterDot struct {
-	x       float32 // 将不变化 =Topomap[x,y] +(0.5, 0.5)
-	y       float32
-	xPower  float32 // x方向速度增益 场强度 v2 根据地形得出 初始化后不变(地形改变则会变) 基于Atan2 范围(-1,1)
-	yPower  float32 // y方向速度增益 场强度 v2 根据地形得出 初始化后不变(地形改变则会变)
-	h       int     // 积水高度，产生积水不参与流动，流动停止 // v2将由水滴实体代替该变量
-	q       int     // 流量 0=无 历史流量    //
-	xPowerQ float32 // v2 根据周围流量算出 每次update变化 基于Atan2 范围(-1,1)
-	yPowerQ float32 // v2
+	x      float32 // 将不变化 =Topomap[x,y] +(0.5, 0.5)
+	y      float32
+	xPower float32 // x方向速度增益 场强度 v2 根据地形得出 初始化后不变(地形改变则会变) 基于Atan2 范围(-1,1)
+	yPower float32 // y方向速度增益 场强度 v2 根据地形得出 初始化后不变(地形改变则会变)
+	h      int     // 积水高度，产生积水不参与流动，流动停止 // v2将由水滴实体代替该变量
+	q      int     // 流量 0=无 历史流量    //
+	//xPowerQ float32 // v2 根据周围流量算出 每次update变化 基于Atan2 范围(-1,1)
+	//yPowerQ float32 // v2
 }
 type Topomap struct {
 	data   []uint8 // 对应坐标只保存高度
@@ -117,10 +117,10 @@ func (w *WaterMap) UpdateVectorByQuantity(m *Topomap, ring int, powerRate float3
 			}
 		}
 
-		if xPower != 0 || yPower != 0 {
-			thedir := math.Atan2(float64(yPower), float64(xPower))
-			w.data[idx].xPowerQ, w.data[idx].yPowerQ = float32(math.Cos(thedir))*powerRate, float32(math.Sin(thedir))*powerRate
-		}
+		//if xPower != 0 || yPower != 0 {
+		//	thedir := math.Atan2(float64(yPower), float64(xPower))
+		//	w.data[idx].xPowerQ, w.data[idx].yPowerQ = float32(math.Cos(thedir))*powerRate, float32(math.Sin(thedir))*powerRate
+		//}
 		//}() //可以不等待 //使用go反而慢
 	}
 }
