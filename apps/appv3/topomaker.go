@@ -176,7 +176,7 @@ func MakeDroplet(w *WaterMap) *Droplet {
 	d.vx, d.vy = float32(math.Cos(thedir))/2, float32(math.Sin(thedir))/2
 
 	//w.data = append(w.data, d)
-	//w.data[idx].q++ //初次不算流量
+	w.data[idx].h++ //初次不算流量
 	return &d
 }
 
@@ -240,8 +240,8 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	//d.hisway = append(d.hisway, newIdx)
 
 	// 不跑到高处
-	if w.data[newIdx].h+int(m.data[newIdx]) > int(m.data[oldIdx]) {
-		log.Printf("pos(%d to %d) is too high, stop, h:%d/%d", oldIdx, newIdx, w.data[oldIdx].h, w.data[newIdx].h)
+	if w.data[newIdx].h+int(m.data[newIdx]) > w.data[oldIdx].h+int(m.data[oldIdx]) {
+		log.Printf("pos(%8d to %8d) is too high, stop, h:%d/%d", oldIdx, newIdx, w.data[oldIdx].h, w.data[newIdx].h)
 		return
 	}
 
@@ -608,18 +608,18 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	}
 
 	// 绘制WaterMap
-	tmpLakeColor := color.RGBA{0, 0xEE, 0xEE, 0xFF}     // alpha=255 表示不透明 青色 有积水
-	tmpLakeColor2 := color.RGBA{0xa0, 0xd2, 0xeb, 0xFF} //#b0d2eb    // blue-gray // 流量痕迹
+	tmpLakeColor := color.RGBA{0, 0xa0, 0xE0, 0xFF}     // alpha=255 表示不透明 青色 有积水
+	tmpLakeColor2 := color.RGBA{0x40, 0x72, 0xcb, 0xFF} //#b0d2eb    // blue-gray // 流量痕迹
 	//tmpColor4 := color.RGBA{66, 50, 209, 0xFF}          //    // 蓝紫色 // 水滴
 	tmpLakeColor3 := color.RGBA{0x99, 0xFF, 0xFF, 0xFF} //#亮蓝色    // 水滴痕迹
-	tmpColor4 := color.RGBA{0x22, 0xFF, 0xFF, 0xFF}     //    // 暗青色 // 水滴最终位置
+	tmpColor4 := color.RGBA{0x50, 0xd6, 0xFE, 0xFF}     //    // 青色 // 水滴最终位置
 	//tmpColor5 := color.CMYK{100, 10, 10, 0}
 	for _, dot := range w.data {
 		// 绘制积水 点周围绘制
 		if dot.h > 0 {
 			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2, tmpLakeColor) // self
-			img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2+1, tmpLakeColor)
-			//img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2, tmpLakeColor)
+			//img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2+1, tmpLakeColor)
+			img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2, tmpLakeColor)
 			//img.Set(int(dot.x)*zoom+zoom/2+1, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
 			//img.Set(int(dot.x)*zoom+zoom/2, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
 			//img.Set(int(dot.x)*zoom+zoom/2-1, int(dot.y)*zoom+zoom/2-1, tmpLakeColor)
