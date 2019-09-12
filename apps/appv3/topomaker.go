@@ -183,7 +183,7 @@ func MakeDroplet(w *WaterMap) *Droplet {
 // 只更新WaterMap中的场 不更新里面的坐标
 func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	oldIdx := int(d.x) + int(d.y)*w.width
-	if oldIdx >= len(w.data) {
+	if oldIdx > len(w.data) || oldIdx < 0 {
 		log.Printf("oldIdx(%d) out of w.data. stop it.", oldIdx)
 		return
 	}
@@ -211,7 +211,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	}
 
 	// 将超出的速度限制成标准速度
-	d.DamponSpeed()
+	d.ReduceSpeed()
 
 	// 场速度与自身速度的平均值
 	tmpX := d.x + d.vx // todo:精度损失风险
@@ -459,7 +459,7 @@ func main() {
 	var zoom = flag.Int("zoom", 1, "zoom of out put image")
 	var addr = flag.String("addr", "", "addr of http server to listen and to show img on html(deprecated)")
 	var riverArrowScale = flag.Float64("river-arrow-scale", 0.8, "river arrow scale")
-	var bDrawField = flag.Bool("draw-field", false, "draw feild vecor in topomap")
+	var drawFlag = flag.Int("draw-flag", 0, "draw flag: 1=draw filed vecor in topomap 2=draw hisway of droplet")
 
 	flag.Parse()
 
@@ -546,7 +546,7 @@ func main() {
 	// then draw
 	img := image.NewRGBA(image.Rect(0, 0, width**zoom, height**zoom))
 
-	DrawToImg(img, &m, &w, maxColor, *zoom, *riverArrowScale, drops, *bDrawField)
+	DrawToImg(img, &m, &w, maxColor, *zoom, *riverArrowScale, drops, *drawFlag)
 
 	wgm := sync.WaitGroup{}
 	if *addr != "" {
@@ -576,7 +576,12 @@ func main() {
 
 }
 
-func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom int, riverArrowScale float64, drops []*Droplet, bDrawField bool) {
+const (
+	DrawFlagField  = iota << 1
+	DrawFlagHisway = iota
+)
+
+func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom int, riverArrowScale float64, drops []*Droplet, drawFlag int) {
 	height := m.height
 	width := m.width
 	var tmpColor float32 = 1
@@ -631,7 +636,7 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	}
 
 	// 绘制流动 在v2下相当于场
-	if bDrawField {
+	if (drawFlag & DrawFlagField) > 0 {
 		for di, dot := range w.data {
 			// 绘制当前点 如果是源头 则绘制白色
 			if dot.xPower != 0.0 || dot.yPower != 0.0 {
@@ -654,12 +659,14 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	}
 	// 绘制droplets
 	for _, drop := range drops {
-		for _, dxi := range drop.hisway {
-			img.Set(int(dxi%width)*zoom+zoom/2, int(dxi/width)*zoom+zoom/2, tmpLakeColor3)
-			//img.Set(int(dxi%width)*zoom+zoom/2+1, int(dxi/width)*zoom+zoom/2+1, tmpLakeColor3)
-			//img.Set(int(dxi%width)*zoom+zoom/2+1, int(dxi/width)*zoom+zoom/2-1, tmpLakeColor3)
-			//img.Set(int(dxi%width)*zoom+zoom/2-1, int(dxi/width)*zoom+zoom/2-1, tmpLakeColor3)
-			//img.Set(int(dxi%width)*zoom+zoom/2-1, int(dxi/width)*zoom+zoom/2+1, tmpLakeColor3)
+		if drawFlag&DrawFlagHisway > 0 {
+			for _, dxi := range drop.hisway {
+				img.Set(int(dxi%width)*zoom+zoom/2, int(dxi/width)*zoom+zoom/2, tmpLakeColor3)
+				//img.Set(int(dxi%width)*zoom+zoom/2+1, int(dxi/width)*zoom+zoom/2+1, tmpLakeColor3)
+				//img.Set(int(dxi%width)*zoom+zoom/2+1, int(dxi/width)*zoom+zoom/2-1, tmpLakeColor3)
+				//img.Set(int(dxi%width)*zoom+zoom/2-1, int(dxi/width)*zoom+zoom/2-1, tmpLakeColor3)
+				//img.Set(int(dxi%width)*zoom+zoom/2-1, int(dxi/width)*zoom+zoom/2+1, tmpLakeColor3)
+			}
 		}
 		img.Set(int(drop.x)*zoom+zoom/2, int(drop.y)*zoom+zoom/2, tmpColor4)
 	}
@@ -787,25 +794,26 @@ func ImgToFile(outputFilePath string, img *image.RGBA, format string) {
 
 const (
 	// 水滴之间的吸引力度 类似于万有引力常量
-	AttractPowerDecay = 0.5
+	AttractPowerDecay = 0.15
 )
 
 // 会改变d的方向 即会改变 vx,vy 值
 func (d *Droplet) CloseTo(target *Droplet, distSquare float32) {
 	//
-	d.vx = d.vx + (target.x-d.x)*float32(math.Sqrt(float64(distSquare)))*AttractPowerDecay/2
-	d.vy = d.vy + (target.y-d.y)*float32(math.Sqrt(float64(distSquare)))*AttractPowerDecay/2
+	distSquareRoot := math.Sqrt(float64(distSquare))
+	d.vx = d.vx + (target.x-d.x)*float32(distSquareRoot)*AttractPowerDecay
+	d.vy = d.vy + (target.y-d.y)*float32(distSquareRoot)*AttractPowerDecay
 }
 
 const (
 	// 距离平方超过这个值 就会被等比例缩减速度 但是保持方向
-	MinDistToDeduct = 3
+	MinDistToReduce = 2.25
 )
 
-func (d *Droplet) DamponSpeed() {
+func (d *Droplet) ReduceSpeed() {
 	vSquare := d.vx*d.vx + d.vy*d.vy
-	if vSquare > MinDistToDeduct {
-		scale := float32(math.Sqrt(float64(vSquare / MinDistToDeduct)))
+	if vSquare > MinDistToReduce {
+		scale := float32(math.Sqrt(float64(vSquare / MinDistToReduce)))
 		d.vx, d.vy = d.vx/scale, d.vy/scale
 		//log.Printf("velo squashed, vSquare:%f", vSquare)
 	}
