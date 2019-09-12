@@ -197,7 +197,7 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	if w.data[oldIdx].xPower == 0 && w.data[oldIdx].yPower == 0 {
 		// 自己生速度 比较浪
 		d.GenVeloByFallPower(m, w)
-		log.Printf("no field power, after play self(x=%f,y=%f, vx,vy=%f,%f) fallPower=%d", d.x, d.y, d.vx, d.vy, d.fallPower)
+		//log.Printf("no field power, after play self(x=%f,y=%f, vx,vy=%f,%f) fallPower=%d", d.x, d.y, d.vx, d.vy, d.fallPower)
 		//return
 	}
 
@@ -266,14 +266,14 @@ func (d *Droplet) GenVeloByFallPower(m *Topomap, w *WaterMap) {
 			// 要和PI有关系 否则都向右面走
 			tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
 			fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
-			d.vx, d.vy = d.vx+fx/10.0, d.vy+fy/10.0
+			d.vx, d.vy = d.vx+fx/4.0, d.vy+fy/4.0
 		}
 
 		// 在一定几率下 位移浮动
 		if tmpRoll < 0.5 {
 			tmpDir := (rand.Float64() - rand.Float64()) * math.Pi * 2
 			fx, fy := float32(math.Cos(tmpDir)), float32(math.Sin(tmpDir))
-			d.x, d.y = d.x+fx/2.0, d.y+fy/2.0
+			d.x, d.y = d.x+fx/1.0, d.y+fy/1.0
 		}
 
 		//log.Printf("drop playself fx,fy=%f,%f", fx, fy)
@@ -807,6 +807,6 @@ func (d *Droplet) DamponSpeed() {
 	if vSquare > MinDistToDeduct {
 		scale := float32(math.Sqrt(float64(vSquare / MinDistToDeduct)))
 		d.vx, d.vy = d.vx/scale, d.vy/scale
-		log.Printf("velo squashed, vSquare:%f", vSquare)
+		//log.Printf("velo squashed, vSquare:%f", vSquare)
 	}
 }
