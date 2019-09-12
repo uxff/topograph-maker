@@ -218,8 +218,6 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 	tmpX := d.x + d.vx // todo:精度损失风险
 	tmpY := d.y + d.vy
 
-	d.x, d.y = tmpX, tmpY
-
 	// 越界判断
 	if int(tmpX) < 0 || int(tmpX) > w.width-1 || int(tmpY) < 0 || int(tmpY) > w.height-1 {
 		log.Printf("droplet move out of bound(x=%f,y=%f). stop move.", tmpX, tmpY)
@@ -239,10 +237,16 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet) {
 		return
 	}
 
-	// droplet no need lock
-	//d.x, d.y = tmpX, tmpY
 	//d.hisway = append(d.hisway, newIdx)
-	d.fallPower += int(m.data[oldIdx]-m.data[newIdx]) * 100
+
+	// 不跑到高处
+	if w.data[newIdx].h+int(m.data[newIdx]) > int(m.data[oldIdx]) {
+		log.Printf("pos(%d to %d) is too high, stop, h:%d/%d", oldIdx, newIdx, w.data[oldIdx].h, w.data[newIdx].h)
+		return
+	}
+
+	d.x, d.y = tmpX, tmpY
+	d.fallPower += int(m.data[oldIdx]-m.data[newIdx]) * 10
 
 	// 更新watermap前加锁
 	//mu := sync.Mutex{}
