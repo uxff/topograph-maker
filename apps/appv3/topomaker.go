@@ -1,6 +1,6 @@
 /*
 	usage: time ./topomaker -w 800 -h 800 -hill 200 -hill-wide 200 -ridge 2 -ridge-wide 50 -times 1000 -dropnum 100 -zoom 5
-	./topomaker.exe --zoom 3 -h 500 -w 500 --hill 0 --ridge 50 --ridge-len 50 --ridge-wide 50 --dropnum 100 --times 1000
+	./topomaker --zoom 3 -h 500 -w 500 --hill 0 --ridge 50 --ridge-len 50 --ridge-wide 50 --dropnum 100 --times 1000
     todo: table lize with http server
 */
 package main
@@ -58,6 +58,8 @@ type WaterMap struct {
 	data   []WaterDot // slice的idx不再是pos
 	width  int
 	height int
+	events chan *ErodeEvent
+	evtIdx int
 }
 
 // 先处理场向量 // 再注水流动
@@ -137,11 +139,6 @@ func DropletsMove(times int, drops []*Droplet, m *Topomap, w *WaterMap) []*Dropl
 		}
 
 		wg.Wait()
-		if i%100 == 0 {
-			w.UpdateVectorByQuantity(m, 2, 0.2)
-			drops = ClearDroplets(drops)
-			log.Printf("drops cleard len=%d", len(drops))
-		}
 	}
 	return drops
 }
@@ -175,6 +172,36 @@ func MakeDroplet(w *WaterMap) *Droplet {
 	thedir := rand.Float64() * math.Pi * 2
 	d.vx, d.vy = float32(math.Cos(thedir))/2, float32(math.Sin(thedir))/2
 	return &d
+}
+
+// 改变地形的事件 异步化 不并行处理 防止并行修改计算错误
+type ErodeEvent struct {
+	oldIdx int
+	newIdx int
+	m      *Topomap
+	drop   *Droplet
+}
+
+// drop(readonly) change the watermap
+func (w *WaterMap) EmitErodeEvents(oldIdx, newIdx int, m *Topomap, drop *Droplet) {
+	w.events <- &ErodeEvent{oldIdx: oldIdx, newIdx: oldIdx, m: m, drop: drop}
+}
+
+func (w *WaterMap) eroding() {
+	//evtIdx := 0
+	for {
+		select {
+		case e := <-w.events:
+			w.evtIdx++
+			w.data[e.newIdx].h++
+			w.data[e.oldIdx].h--
+			if w.evtIdx%100 == 0 {
+				w.UpdateVectorByQuantity(e.m, 2, 0.2)
+				//drops = ClearDroplets(drops)
+				//log.Printf("drops cleard len=%d", len(drops))
+			}
+		}
+	}
 }
 
 // 只更新WaterMap中的场 不更新里面的坐标
@@ -246,8 +273,9 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet, step int) {
 	d.x, d.y = tmpX, tmpY
 	d.fallPower += int(m.data[oldIdx]-m.data[newIdx]) * 10
 
-	w.data[oldIdx].h--
-	w.data[newIdx].h++
+	//w.data[oldIdx].h--
+	//w.data[newIdx].h++
+	go w.EmitErodeEvents(oldIdx, newIdx, m, d)
 }
 
 // 根据落差能量移动 包括位置浮动和速度浮动 只更改droplet
@@ -290,6 +318,16 @@ func (w *WaterMap) Init(width int, height int) {
 			w.data[x+y*w.width].y = float32(y) + 0.5
 		}
 	}
+	w.events = make(chan *ErodeEvent, 1000)
+	go w.eroding()
+}
+
+func (w *WaterMap) SumH() int {
+	h := 0
+	for idx := range w.data {
+		h += w.data[idx].h
+	}
+	return h
 }
 
 type Hill struct {
@@ -566,6 +604,7 @@ func main() {
 		log.Printf("[%d]=%+v", di, *d)
 	}
 
+	log.Printf("waterMap.sum(h)=%d events=%d", w.SumH(), w.evtIdx)
 }
 
 const (
@@ -786,7 +825,7 @@ func ImgToFile(outputFilePath string, img *image.RGBA, format string) {
 
 const (
 	// 水滴之间的吸引力度 类似于万有引力常量
-	AttractPowerDecay = 0.15
+	AttractPowerDecay = 0.25
 )
 
 // 会改变d的方向 即会改变 vx,vy 值
