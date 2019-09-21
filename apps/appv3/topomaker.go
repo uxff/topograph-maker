@@ -1,6 +1,7 @@
 /*
 	usage: time ./topomaker -w 800 -h 800 -hill 200 -hill-wide 200 -ridge 2 -ridge-wide 50 -times 1000 -dropnum 100 -zoom 5
 	./topomaker --zoom 3 -h 500 -w 500 --hill 0 --ridge 50 --ridge-len 50 --ridge-wide 50 --dropnum 100 --times 1000
+	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 15 --ridge-len 40 --ridge-wide 50 --dropnum 0 --times 1 --color-tpl-step 7
     todo: table lize with http server
 */
 package main
@@ -22,7 +23,7 @@ import (
 	"github.com/uxff/topograph-maker/drawer"
 )
 
-const colorTplFile = "./image/color-tpl.png"
+const colorTplFile = "./image/color-tpl2.png"
 
 // 方案二(un done) 计算好地形场向量 没有流量向量
 // 随机撒水珠 水滴会移动 移动的时候会动态影响周边的其他水滴
@@ -340,7 +341,7 @@ type Hill struct {
 }
 
 /*返回颜色数组，下标越大颜色海拔越高*/
-func colorTpl(colorTplFile string) []color.Color {
+func colorTpl(colorTplFile string, colorTplStep int) []color.Color {
 	var colorTplFileIo, _ = os.Open(colorTplFile)
 	defer colorTplFileIo.Close()
 	var colorTplPng, err = png.Decode(colorTplFileIo)
@@ -349,10 +350,12 @@ func colorTpl(colorTplFile string) []color.Color {
 		log.Println("png.decode err when read colorTpl:", err)
 		return nil
 	}
-	theLen := colorTplPng.Bounds().Dy()
+
+	// 从colorTplStep以上的部分取
+	theLen := colorTplPng.Bounds().Dy() - colorTplStep
 	cs := make([]color.Color, theLen)
 	for i := 0; i < theLen; i++ {
-		cs[i] = colorTplPng.At(0, theLen-i-1)
+		cs[i] = colorTplPng.At(0, (theLen-i-1)-colorTplStep)
 	}
 	return cs
 }
@@ -490,6 +493,7 @@ func main() {
 	var addr = flag.String("addr", "", "addr of http server to listen and to show img on html(deprecated)")
 	var riverArrowScale = flag.Float64("river-arrow-scale", 0.8, "river arrow scale")
 	var drawFlag = flag.Int("draw-flag", 0, "draw flag: 1=draw filed vecor in topomap 2=draw hisway of droplet")
+	var colorTplStep = flag.Int("color-tpl-step", 0, "color tpl file step line, will igore there step in tpl")
 
 	flag.Parse()
 
@@ -560,7 +564,8 @@ func main() {
 			m.data[x+y*width] = uint8(tmpColor) //+ uint8(rand.Int()%2) //int8(width - x)
 		}
 	}
-	maxColor *= 1.5
+	log.Printf("maxColoe=%f", maxColor)
+	maxColor *= 1.2
 
 	w.AssignVector(&m, 3)
 
@@ -576,7 +581,7 @@ func main() {
 	// then draw
 	img := image.NewRGBA(image.Rect(0, 0, width**zoom, height**zoom))
 
-	DrawToImg(img, &m, &w, maxColor, *zoom, *riverArrowScale, drops, *drawFlag)
+	DrawToImg(img, &m, &w, maxColor, *zoom, *riverArrowScale, drops, *drawFlag, *colorTplStep)
 
 	wgm := sync.WaitGroup{}
 	if *addr != "" {
@@ -612,13 +617,13 @@ const (
 	DrawFlagHisway = iota
 )
 
-func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom int, riverArrowScale float64, drops []*Droplet, drawFlag int) {
+func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom int, riverArrowScale float64, drops []*Droplet, drawFlag int, colorTplStep int) {
 	height := m.height
 	width := m.width
 	var tmpColor float32 = 1
 
 	// 获取颜色模板
-	cs := colorTpl(colorTplFile)
+	cs := colorTpl(colorTplFile, colorTplStep)
 	cslen := len(cs) - 1
 	// 地图背景地形绘制
 	for y := 0; y < height; y++ {
@@ -742,17 +747,32 @@ func DrawToHtml(w *WaterMap, m *Topomap) {
 }
 
 // ridgeLen=count(Hill)
+/**
+ridge = []Hill
+ridgeLen = Hill 个数
+ridgeWide = Hill wide
+*/
 func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	ridgeHills := make([]Hill, ridgeLen)
-	baseTowardX, baseTowardY := (rand.Int()%mWidth-mWidth/2)/20, (rand.Int()%mHeight-mHeight/2)/20
+	// toward as step
+	baseTowardX, baseTowardY := (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide), (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide)
+	log.Printf("baseTowardX,baseTowardY=%d,%d", baseTowardX, baseTowardY)
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
+		r.h = rand.Int()%(5) + 2
 		if ri == 0 {
 			// 第一个
-			r.x, r.y, r.r, r.h = (rand.Int() % mWidth), (rand.Int() % mHeight), (rand.Int()%(ridgeWide) + 1), (rand.Int()%(5) + 2)
+			r.x, r.y, r.r = (rand.Int() % mWidth), (rand.Int() % mHeight), (rand.Int()%ridgeWide)/2+ridgeWide/2
 		} else {
-			// 其他
-			r.x, r.y, r.r, r.h = ridgeHills[ri-1].x+(rand.Int()%ridgeWide)-ridgeWide/2+baseTowardX, ridgeHills[ri-1].y+(rand.Int()%ridgeWide)-ridgeWide/2+baseTowardY, (rand.Int()%(ridgeWide) + 1), (rand.Int()%(5) + 2)
+			// 其他 基础方向: ridgeHills[ri-1].x+baseTowardX 摆动:(rand.Int()%ridgeWide)/2-(rand.Int()%ridgeWide)/2
+			waveX, waveY := 0, 0
+			if baseTowardX > 0 {
+				waveX = (rand.Int() % baseTowardX) - (rand.Int() % baseTowardX)
+			}
+			if baseTowardY > 0 {
+				waveY = (rand.Int() % baseTowardY) - (rand.Int() % baseTowardY)
+			}
+			r.x, r.y, r.r = ridgeHills[ri-1].x+baseTowardX/2+waveX, ridgeHills[ri-1].y+baseTowardY/2+waveY, (rand.Int()%ridgeWide)/2+ridgeWide/2
 		}
 	}
 
