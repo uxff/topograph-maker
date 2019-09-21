@@ -2,6 +2,7 @@
 	usage: time ./topomaker -w 800 -h 800 -hill 200 -hill-wide 200 -ridge 2 -ridge-wide 50 -times 1000 -dropnum 100 -zoom 5
 	./topomaker --zoom 3 -h 500 -w 500 --hill 0 --ridge 50 --ridge-len 50 --ridge-wide 50 --dropnum 100 --times 1000
 	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 15 --ridge-len 40 --ridge-wide 50 --dropnum 0 --times 1 --color-tpl-step 7
+	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 150 --ridge 15 --ridge-len 40 --ridge-wide 20 --dropnum 0 --times 1 --color-tpl-step 3
     todo: table lize with http server
 */
 package main
@@ -564,7 +565,7 @@ func main() {
 			m.data[x+y*width] = uint8(tmpColor) //+ uint8(rand.Int()%2) //int8(width - x)
 		}
 	}
-	log.Printf("maxColoe=%f", maxColor)
+	log.Printf("maxColor=%f", maxColor)
 	maxColor *= 1.2
 
 	w.AssignVector(&m, 3)
@@ -628,6 +629,7 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	// 地图背景地形绘制
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
+			//tmpColor = (float32(m.data[x+y*width]/2) - 0.001) * 2
 			tmpColor = float32(m.data[x+y*width])
 			//img.Set(x, y, color.RGBA{uint8(0xFF * tmpColor / maxColor), 0xFF, uint8(0xFF * tmpColor / maxColor), 0xFF})
 			// 比例上色
@@ -755,8 +757,10 @@ ridgeWide = Hill wide
 func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	ridgeHills := make([]Hill, ridgeLen)
 	// toward as step
-	baseTowardX, baseTowardY := (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide), (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide)
-	log.Printf("baseTowardX,baseTowardY=%d,%d", baseTowardX, baseTowardY)
+	//baseTowardX, baseTowardY := (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide), (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide)
+	baseTowardX1, baseTowardY1 := randomDir()
+	baseTowardX, baseTowardY := int(baseTowardX1*float32(ridgeWide)), int(baseTowardY1*float32(ridgeWide))
+	log.Printf("baseTowardX,baseTowardY=%d,%d  sqare=%d", baseTowardX, baseTowardY, baseTowardX*baseTowardX+baseTowardY*baseTowardY)
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
 		r.h = rand.Int()%(5) + 2
@@ -766,11 +770,11 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 		} else {
 			// 其他 基础方向: ridgeHills[ri-1].x+baseTowardX 摆动:(rand.Int()%ridgeWide)/2-(rand.Int()%ridgeWide)/2
 			waveX, waveY := 0, 0
-			if baseTowardX > 0 {
-				waveX = (rand.Int() % baseTowardX) - (rand.Int() % baseTowardX)
+			if baseTowardX != 0 {
+				waveY = (rand.Int() % baseTowardX) - (rand.Int() % baseTowardX)
 			}
-			if baseTowardY > 0 {
-				waveY = (rand.Int() % baseTowardY) - (rand.Int() % baseTowardY)
+			if baseTowardY != 0 {
+				waveX = (rand.Int() % baseTowardY) - (rand.Int() % baseTowardY)
 			}
 			r.x, r.y, r.r = ridgeHills[ri-1].x+baseTowardX/2+waveX, ridgeHills[ri-1].y+baseTowardY/2+waveY, (rand.Int()%ridgeWide)/2+ridgeWide/2
 		}
@@ -868,4 +872,11 @@ func (d *Droplet) ReduceSpeed() {
 		d.vx, d.vy = d.vx/scale, d.vy/scale
 		//log.Printf("velo squashed, vSquare:%f", vSquare)
 	}
+}
+
+// 返回随机方向
+func randomDir() (x, y float32) {
+	thedir := rand.Float64() * math.Pi * 2
+	x, y = float32(math.Cos(thedir)), float32(math.Sin(thedir))
+	return
 }
