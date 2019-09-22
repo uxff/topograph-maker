@@ -513,15 +513,19 @@ func main() {
 		}
 	}
 
+	log.Printf("will make hills(n:%d,wide:%d)", *nHills, *hillWide)
 	// 随机n个圆圈 累加抬高 输出到m中
 	hills := MakeHills(width, height, *hillWide, *nHills)
 
+	log.Printf("will make ridge(n:%d, wide:%d)", *ridgeLen, *ridgeWide)
 	// 转换痕迹为ridge 为每个环分配随机半径 输出到m中
 	var ridgeHills []Hill
 	for ri := 0; ri < *nRidge; ri++ {
 		ridgeHills = append(ridgeHills, MakeRidge(*ridgeLen, *ridgeWide, width, height)...)
 	}
 	//log.Println("ridgeHills=", ridgeHills)
+
+	log.Printf("will fill hills and ridges to TopoMap")
 
 	// 生成地图 制造地形 将上面生成的ridge和hills输出到m上
 	var tmpColor, maxColor float32 = 1, 1
@@ -561,7 +565,7 @@ func main() {
 			m.data[x+y*width] = uint8(tmpColor) //+ uint8(rand.Int()%2) //int8(width - x)
 		}
 	}
-	log.Printf("maxColor=%f", maxColor)
+	log.Printf("will make drops, maxColor=%f", maxColor)
 	maxColor *= 1.2
 
 	w.AssignVector(&m, 3)
@@ -572,9 +576,11 @@ func main() {
 		drops[di] = MakeDroplet(&w)
 	}
 
+	log.Printf("will move drops")
 	drops = DropletsMove(*times, drops, &m, &w)
-	log.Printf("update done. times=%d num drops=%d->%d", *times, *dropNum, len(drops))
+	log.Printf("update drops done. times=%d num drops=%d->%d", *times, *dropNum, len(drops))
 
+	log.Printf("will draw to image")
 	// then draw
 	img := image.NewRGBA(image.Rect(0, 0, width**zoom, height**zoom))
 
