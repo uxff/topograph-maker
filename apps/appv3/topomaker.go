@@ -891,9 +891,9 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 	for ri, _ := range hills {
 		r := &hills[ri]
 		// todo 地图边框附近不要去
-		r.x, r.y, r.r, r.h = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge, (rand.Int()%(hillWide) + 1), (rand.Int()%(5) + 2)
+		r.x, r.y = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge
 		// 倾斜度
-		r.tiltDir, r.tiltLen = rand.Float64()*math.Pi*2, (rand.Int()%20)+1
+		r.tiltDir, r.tiltLen, r.r, r.h = rand.Float64()*math.Pi*2, (rand.Int()%20)+1, int(math.Sqrt(float64(rand.Int()%(hillWide*hillWide+1)))), (rand.Int()%(5) + 2)
 	}
 
 	//log.Printf("wedge=%d hedge=%d hills=%v", widthEdge, heightEdge, hills)
