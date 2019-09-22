@@ -3,6 +3,7 @@
 	./topomaker --zoom 3 -h 500 -w 500 --hill 0 --ridge 50 --ridge-len 50 --ridge-wide 50 --dropnum 100 --times 1000
 	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 15 --ridge-len 40 --ridge-wide 50 --dropnum 0 --times 1 --color-tpl-step 7
 	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 150 --ridge 15 --ridge-len 40 --ridge-wide 20 --dropnum 0 --times 1 --color-tpl-step 3
+	./topomaker --zoom 1 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 20 --ridge-len 50 --ridge-wide 20 --dropnum 0 --times 1 --color-tpl-step 10
     todo: table lize with http server
 */
 package main
@@ -513,12 +514,7 @@ func main() {
 	}
 
 	// 随机n个圆圈 累加抬高 输出到m中
-	hills := make([]Hill, *nHills)
-	for ri, _ := range hills {
-		r := &hills[ri]
-		r.x, r.y, r.r, r.h = (rand.Int() % width), (rand.Int() % height), (rand.Int()%(*hillWide) + 1), (rand.Int()%(5) + 2)
-		r.tiltDir, r.tiltLen = rand.Float64()*math.Pi, (rand.Int()%20)+1
-	}
+	hills := MakeHills(width, height, *hillWide, *nHills)
 
 	// 转换痕迹为ridge 为每个环分配随机半径 输出到m中
 	var ridgeHills []Hill
@@ -879,4 +875,21 @@ func randomDir() (x, y float32) {
 	thedir := rand.Float64() * math.Pi * 2
 	x, y = float32(math.Cos(thedir)), float32(math.Sin(thedir))
 	return
+}
+
+func MakeHills(width, height, hillWide, num int) []Hill {
+	// 随机n个圆圈 累加抬高 输出到m中
+	widthEdge := width / 15
+	heightEdge := height / 15
+	hills := make([]Hill, num)
+	for ri, _ := range hills {
+		r := &hills[ri]
+		// todo 地图边框附近不要去
+		r.x, r.y, r.r, r.h = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge, (rand.Int()%(hillWide) + 1), (rand.Int()%(5) + 2)
+		// 倾斜度
+		r.tiltDir, r.tiltLen = rand.Float64()*math.Pi*2, (rand.Int()%20)+1
+	}
+
+	//log.Printf("wedge=%d hedge=%d hills=%v", widthEdge, heightEdge, hills)
+	return hills
 }
