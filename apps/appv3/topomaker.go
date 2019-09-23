@@ -4,6 +4,8 @@
 	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 15 --ridge-len 40 --ridge-wide 50 --dropnum 0 --times 1 --color-tpl-step 7
 	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 150 --ridge 15 --ridge-len 40 --ridge-wide 20 --dropnum 0 --times 1 --color-tpl-step 3
 	./topomaker --zoom 1 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 20 --ridge-len 50 --ridge-wide 20 --dropnum 0 --times 1 --color-tpl-step 10
+	# excellent
+	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 150 --ridge 40 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 10 # excellent
     todo: table lize with http server
 */
 package main
@@ -184,16 +186,17 @@ type ErodeEvent struct {
 	oldIdx int
 	newIdx int
 	m      *Topomap
+	w      *WaterMap
 	drop   *Droplet
 }
 
 // drop(readonly) change the watermap
 func (w *WaterMap) EmitErodeEvents(oldIdx, newIdx int, m *Topomap, drop *Droplet) {
-	w.events <- &ErodeEvent{oldIdx: oldIdx, newIdx: oldIdx, m: m, drop: drop}
+	w.events <- &ErodeEvent{oldIdx: oldIdx, newIdx: newIdx, m: m, w: w, drop: drop}
 }
 
 func (m *Topomap) EmitErodeEvents(oldIdx, newIdx int, w *WaterMap, drop *Droplet) {
-	m.events <- &ErodeEvent{oldIdx: oldIdx, newIdx: oldIdx, drop: drop}
+	m.events <- &ErodeEvent{oldIdx: oldIdx, newIdx: newIdx, m: m, w: w, drop: drop}
 }
 
 func (m *Topomap) eroding() {
@@ -204,6 +207,16 @@ func (m *Topomap) eroding() {
 			// 50% 的几率将
 			if m.data[e.oldIdx] > 0 {
 				m.data[e.oldIdx]--
+			}
+			// todo 这里有bug
+			neis := e.w.data[e.oldIdx].getNeighbors(e.w)
+			for nei := range neis {
+				if neis[nei].y >= m.height || neis[nei].x >= m.width {
+					continue
+				}
+				if m.data[neis[nei].y*m.width+neis[nei].x] > 0 {
+					m.data[neis[nei].y*m.width+neis[nei].x]--
+				}
 			}
 		}
 	}
@@ -219,7 +232,7 @@ func (w *WaterMap) eroding() {
 			w.data[e.oldIdx].h--
 			log.Printf("eroding watermap: oldIdx:%d newIdx:%d", e.oldIdx, e.newIdx)
 
-			if e.oldIdx != e.newIdx && w.data[e.oldIdx].q%2 == 1 {
+			if e.oldIdx != e.newIdx {
 				log.Printf("will erode topomap: oldIdx:%d newIdx:%d", e.oldIdx, e.newIdx)
 				go e.m.EmitErodeEvents(e.oldIdx, e.newIdx, w, e.drop)
 				//w.data[e.oldIdx].q -= 3
@@ -406,13 +419,13 @@ func lineTo(img *image.RGBA, startX, startY, destX, destY int, lineColor, startC
 // 此函数固定返回本坐标周边2环8个边界点，可能包含超出地图边界的点
 func (d *WaterDot) getNeighbors(w *WaterMap) []struct{ x, y int } {
 	pos := make([]struct{ x, y int }, 8)
-	pos[0].x, pos[0].y = int(d.x+1), int(d.y)
+	pos[0].x, pos[0].y = int(d.x+1), int(d.y+0)
 	pos[1].x, pos[1].y = int(d.x+1), int(d.y-1)
-	pos[2].x, pos[2].y = int(d.x), int(d.y-1)
+	pos[2].x, pos[2].y = int(d.x+0), int(d.y-1)
 	pos[3].x, pos[3].y = int(d.x-1), int(d.y-1)
-	pos[4].x, pos[4].y = int(d.x-1), int(d.y)
+	pos[4].x, pos[4].y = int(d.x-1), int(d.y+0)
 	pos[5].x, pos[5].y = int(d.x-1), int(d.y+1)
-	pos[6].x, pos[6].y = int(d.x), int(d.y+1)
+	pos[6].x, pos[6].y = int(d.x+0), int(d.y+1)
 	pos[7].x, pos[7].y = int(d.x+1), int(d.y+1)
 	return pos
 }
@@ -568,6 +581,7 @@ func main() {
 				if distM <= r.r*r.r {
 					//tmpColor++
 					tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
+					//tmpColor += float32(r.h) - float32(float64(r.h)*(math.Sqrt(float64(distM)/float64((rn*rn))))) //todo test 效果不好
 					//tmpColor += float32(distM) / float32(r.r*r.r) * rand.Float32()
 					if maxColor < tmpColor {
 						maxColor = tmpColor
@@ -591,6 +605,9 @@ func main() {
 				}
 			}
 
+			if tmpColor < 0 {
+				tmpColor = 0
+			}
 			m.data[x+y*width] = uint8(tmpColor) //+ uint8(rand.Int()%2) //int8(width - x)
 		}
 	}
@@ -794,7 +811,8 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	log.Printf("baseTowardX,baseTowardY=%d,%d  sqare=%d", baseTowardX, baseTowardY, baseTowardX*baseTowardX+baseTowardY*baseTowardY)
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
-		r.h = rand.Int()%(5) + 2
+		// todo max height as const
+		r.h = rand.Int()%(7) + 3
 		if ri == 0 {
 			// 第一个
 			r.x, r.y, r.r = (rand.Int() % mWidth), (rand.Int() % mHeight), (rand.Int()%ridgeWide)/2+ridgeWide/2
@@ -814,7 +832,7 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	return ridgeHills
 }
 
-// 随机选择一个ridge增长方向 ridgeWide=hillStep
+// todo 树枝型ridge
 func MakeRidge2(startX, startY int, ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	ridgeHills := make([]Hill, ridgeLen)
 	baseTowardX, baseTowardY := (rand.Int()%mWidth-mWidth/2)/20, (rand.Int()%mHeight-mHeight/2)/20
@@ -921,8 +939,13 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 		r := &hills[ri]
 		// todo 地图边框附近不要去
 		r.x, r.y = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge
-		// 倾斜度
+		// 倾斜度 todo tilt: 未生效
 		r.tiltDir, r.tiltLen, r.r, r.h = rand.Float64()*math.Pi*2, (rand.Int()%20)+1, int(math.Sqrt(float64(rand.Int()%(hillWide*hillWide+1)))), (rand.Int()%(5) + 2)
+		// todo max height as const
+		if ri%3 == 1 {
+			r.h *= -1
+		}
+		//log.Printf("ri=%d h=%d s=%d", ri, r.h, (ri%2)*2-1)
 	}
 
 	//log.Printf("wedge=%d hedge=%d hills=%v", widthEdge, heightEdge, hills)
