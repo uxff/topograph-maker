@@ -56,6 +56,8 @@ type Topomap struct {
 	data   []uint8 // 对应坐标只保存高度
 	width  int
 	height int
+	events chan *ErodeEvent
+	evtIdx int
 }
 type WaterMap struct {
 	data   []WaterDot // slice的idx不再是pos
@@ -190,6 +192,23 @@ func (w *WaterMap) EmitErodeEvents(oldIdx, newIdx int, m *Topomap, drop *Droplet
 	w.events <- &ErodeEvent{oldIdx: oldIdx, newIdx: oldIdx, m: m, drop: drop}
 }
 
+func (m *Topomap) EmitErodeEvents(oldIdx, newIdx int, w *WaterMap, drop *Droplet) {
+	m.events <- &ErodeEvent{oldIdx: oldIdx, newIdx: oldIdx, drop: drop}
+}
+
+func (m *Topomap) eroding() {
+	for {
+		select {
+		case e := <-m.events:
+			m.evtIdx++
+			// 50% 的几率将
+			if m.data[e.oldIdx] > 0 {
+				m.data[e.oldIdx]--
+			}
+		}
+	}
+}
+
 func (w *WaterMap) eroding() {
 	//evtIdx := 0
 	for {
@@ -198,6 +217,14 @@ func (w *WaterMap) eroding() {
 			w.evtIdx++
 			w.data[e.newIdx].h++
 			w.data[e.oldIdx].h--
+			log.Printf("eroding watermap: oldIdx:%d newIdx:%d", e.oldIdx, e.newIdx)
+
+			if e.oldIdx != e.newIdx && w.data[e.oldIdx].q%2 == 1 {
+				log.Printf("will erode topomap: oldIdx:%d newIdx:%d", e.oldIdx, e.newIdx)
+				go e.m.EmitErodeEvents(e.oldIdx, e.newIdx, w, e.drop)
+				//w.data[e.oldIdx].q -= 3
+			}
+
 			if w.evtIdx%100 == 0 {
 				w.UpdateVectorByQuantity(e.m, 2, 0.2)
 				//drops = ClearDroplets(drops)
@@ -309,6 +336,8 @@ func (m *Topomap) Init(width int, height int) {
 	m.data = make([]uint8, width*height)
 	m.width = width
 	m.height = height
+	m.events = make(chan *ErodeEvent, 1000)
+	go m.eroding()
 }
 func (w *WaterMap) Init(width int, height int) {
 	w.data = make([]WaterDot, width*height)
