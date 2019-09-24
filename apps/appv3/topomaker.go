@@ -7,6 +7,7 @@
 	# excellent
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 150 --ridge 40 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 10 # excellent
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 100 --ridge 50 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 15
+	./topomaker --zoom 1 -h 800 -w 800 --hill 400 --hill-wide 100 --ridge 30 --ridge-len 20 --ridge-wide 20 --dropnum 0 --color-tpl-step 20 --stuck 3 --petal-shape 2 --petal-num 4
 
     todo: table lize with http server
 	- parallel fill hills to topomap # done
@@ -1052,7 +1053,7 @@ func (h *Hill) R(x, y int, petalFlag *PetalFlag) int {
 	case 1:
 		// 圆花瓣状
 		diffDir := math.Atan2(float64(y-h.y), float64(x-h.x)) - h.tiltDir // 找到方向差
-		dist := math.Abs(math.Sin(diffDir*petalFlag.PetalNum)+1.5) + 2.0
+		dist := math.Sin(diffDir*petalFlag.PetalNum)/2.0 + 1.0
 		return int(dist * float64(h.r))
 	case 2:
 		// 尖花瓣状 需要加大hill-wide 否则都是细线
