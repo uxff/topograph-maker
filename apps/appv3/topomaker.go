@@ -7,7 +7,16 @@
 	# excellent
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 150 --ridge 40 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 10 # excellent
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 100 --ridge 50 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 15
+
     todo: table lize with http server
+	- parallel fill hills to topomap # done
+	- triangle stuck, triangle hill, petalize hill # done
+	- stuck support # done
+	- revert hill, like well # done
+	- ridge hills # done
+	- river flow # done
+	- river erode topomap # developing
+
 */
 package main
 
@@ -28,6 +37,7 @@ import (
 	"github.com/uxff/topograph-maker/drawer"
 )
 
+// 等高线文件模板 取垂直第一列的像素
 const colorTplFile = "./image/color-tpl2.png"
 const (
 	RidgeHeightMedian   = 7   // ridge 高度中间数 在此基础上浮动
@@ -37,6 +47,11 @@ const (
 	AttractPowerDecay = 0.25
 	// 距离平方超过这个值 就会被等比例缩减速度 但是保持方向
 	MinDistToReduce = 2
+)
+
+const (
+	// Hill 的花瓣数量
+	HillPetalNum = 5
 )
 
 const (
@@ -553,6 +568,7 @@ func main() {
 	var addr = flag.String("addr", "", "addr of http server to listen and to show img on html(deprecated)")
 	var riverArrowScale = flag.Float64("river-arrow-scale", 0.8, "river arrow scale")
 	var drawFlag = flag.Int("draw-flag", 0, "draw flag: 1=draw filed vecor in topomap 2=draw hisway of droplet")
+	var stuckNum = flag.Int("stuck", 0, "stuck hill number, hill in stuck area will pressed, even height be 0")
 	var colorTplStep = flag.Int("color-tpl-step", 0, "color tpl file step line, will igore there step in tpl")
 
 	flag.Parse()
@@ -584,7 +600,7 @@ func main() {
 	//log.Println("ridgeHills=", ridgeHills)
 
 	// no terrian in stuck area
-	stuckHills := MakeHills(width, height, width/3, 3)
+	stuckHills := MakeHills(width, height, width/3, *stuckNum)
 	// strip hills from stuckHills
 	for sti := range stuckHills {
 		stuckedCnt := 0
@@ -610,7 +626,7 @@ func main() {
 				//log.Printf("a stucked ridgeHill(%d/%d)", rhi, len(ridgeHills))
 				//ridgeHills = append(ridgeHills[:rhi], ridgeHills[rhi+1:]...)
 				//rhi--
-				ridgeHills[rhi].h /= 4
+				ridgeHills[rhi].h /= 2
 				if rhi%2 == 1 {
 				} else {
 					//ridgeHills[rhi].h *= 2
@@ -622,48 +638,79 @@ func main() {
 
 	log.Printf("will fill hills and ridges to TopoMap")
 
-	// 生成地图 制造地形 将上面生成的ridge和hills输出到m上
-	var tmpColor, maxColor float32 = 1, 1
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			tmpColor = 0
-			// 收集ridgeHills产生的altitude
-			for _, r := range ridgeHills {
-				distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
-				rn := (r.r)
-				if distM <= r.r*r.r {
-					//tmpColor++
-					tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
-					//tmpColor += float32(r.h) - float32(float64(r.h)*(math.Sqrt(float64(distM)/float64((rn*rn))))) //todo test 效果不好
-					//tmpColor += float32(distM) / float32(r.r*r.r) * rand.Float32()
-					if maxColor < tmpColor {
-						maxColor = tmpColor
-					}
-					//log.Println("color fill x,y,r,c=", x, y, r, tmpColor)
-				}
-			}
-			// 收集hills产生的attitude
-			for _, r := range hills {
-				distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
-				//rn := float64(r.tiltLen)*math.Sin(r.tiltDir-math.Atan2(float64(y), float64(x))) + float64(r.r)	// 尝试倾斜地图中的圆环 尝试失败
-				rn := (r.r)
-				if distM <= int(rn*rn) {
-					// 产生的ring中间隆起
-					tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
-					//tmpColor += float32(distM) / float32(rn*rn) * rand.Float32()
-					if maxColor < tmpColor {
-						maxColor = tmpColor
-					}
-					//log.Println("color fill x,y,r,c=", x, y, r, tmpColor, "r=", r)
-				}
-			}
+	var maxColor float32 = 1
+	wgf := &sync.WaitGroup{}
 
-			if tmpColor < 0 {
-				tmpColor = 0
+	maxColorCheckChan := make(chan float32, 100000)
+	maxColorCheckOver := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case ctmp, ok := <-maxColorCheckChan:
+				if !ok {
+					log.Printf("maxColorChan is closed")
+					maxColorCheckOver <- struct{}{}
+					return
+				}
+				if maxColor < ctmp {
+					maxColor = ctmp
+				}
 			}
-			m.data[x+y*width] = uint8(tmpColor) //+ uint8(rand.Int()%2) //int8(width - x)
 		}
+	}()
+
+	// 生成地图 制造地形 将上面生成的ridge和hills输出到m上
+	wgf.Add(height)
+	for y := 0; y < height; y++ {
+		go func(y int) {
+			defer wgf.Done()
+			var tmpColor float32 = 0
+			for x := 0; x < width; x++ {
+				tmpColor = 0
+				// 收集ridgeHills产生的altitude
+				for _, r := range ridgeHills {
+					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
+					rn := (r.r)
+					if distM <= r.r*r.r {
+						//tmpColor++
+						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
+						//tmpColor += float32(r.h) - float32(float64(r.h)*(math.Sqrt(float64(distM)/float64((rn*rn))))) //todo test 效果不好
+						//tmpColor += float32(distM) / float32(r.r*r.r) * rand.Float32()
+						//if maxColor < tmpColor {
+						//	maxColor = tmpColor
+						//}
+						maxColorCheckChan <- tmpColor
+						//log.Println("color fill x,y,r,c=", x, y, r, tmpColor)
+					}
+				}
+				// 收集hills产生的attitude
+				for _, r := range hills {
+					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
+					//rn := float64(r.tiltLen)*math.Sin(r.tiltDir-math.Atan2(float64(y), float64(x))) + float64(r.r)	// 尝试倾斜地图中的圆环 尝试失败
+					rn := r.R(x, y) //(r.r) // 使用花瓣半径效果好
+					if distM <= int(rn*rn) {
+						// 产生的ring中间隆起
+						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
+						//tmpColor += float32(distM) / float32(rn*rn) * rand.Float32()
+						//if maxColor < tmpColor {
+						//	maxColor = tmpColor
+						//}
+						maxColorCheckChan <- tmpColor
+						//log.Println("color fill x,y,r,c=", x, y, r, tmpColor, "r=", r)
+					}
+				}
+
+				if tmpColor < 0 {
+					tmpColor = 0
+				}
+				m.data[x+y*width] = uint8(tmpColor) //+ uint8(rand.Int()%2) //int8(width - x)
+			}
+		}(y)
 	}
+	wgf.Wait()
+	close(maxColorCheckChan)
+	log.Printf("counting max color")
+	<-maxColorCheckOver
 	log.Printf("will make drops, maxColor=%f", maxColor)
 	maxColor *= 1.2
 
@@ -722,6 +769,7 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 	// 获取颜色模板
 	cs := colorTpl(colorTplFile, colorTplStep)
 	cslen := len(cs) - 1
+	log.Printf("color-tpl has %d steps", cslen)
 	// 地图背景地形绘制
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
@@ -735,7 +783,8 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 			// 放大
 			for zix := 0; zix < zoom; zix++ {
 				for ziy := 0; ziy < zoom; ziy++ {
-					img.Set(x*zoom+zix, y*zoom+ziy, cs[int(float32(cslen)*(tmpColor/maxColor))])
+					ctmp := cs[int(float32(cslen)*(tmpColor/maxColor))]
+					img.Set(x*zoom+zix, y*zoom+ziy, ctmp)
 				}
 			}
 		}
@@ -961,7 +1010,7 @@ func (d *Droplet) ReduceSpeed() {
 	}
 }
 
-// 返回随机方向
+// 返回随机方向 x,y 取值范围 [-1,1]
 func randomDir() (x, y float32) {
 	thedir := rand.Float64() * math.Pi * 2
 	x, y = float32(math.Cos(thedir)), float32(math.Sin(thedir))
@@ -979,7 +1028,6 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 		r.x, r.y, r.h = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge, rand.Int()%HillHeightMedian+HillHeightMedian/2
 		// 倾斜度 todo tilt: 未生效
 		r.tiltDir, r.tiltLen, r.r = rand.Float64()*math.Pi*2, (rand.Int()%20)+1, int(math.Sqrt(float64(rand.Int()%(hillWide*hillWide+1))))
-		// todo max height as const
 		if ri%3 == 1 {
 			r.h *= -1
 		}
@@ -988,4 +1036,18 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 
 	//log.Printf("wedge=%d hedge=%d hills=%v", widthEdge, heightEdge, hills)
 	return hills
+}
+
+// get radius 一个点(x,y)看hill的边距离 hill是三角形 不同视角看到的距离不一样
+// 返回花瓣状距离 花瓣hill产生的高原效果特别好
+// todo: 有模糊横线 精度损失导致
+func (h *Hill) R(x, y int) int {
+	tarDir := math.Atan2(float64(y-h.y), float64(x-h.x))
+	diffDir := tarDir - h.tiltDir // 找到方向差
+
+	// 圆花瓣状
+	//dist := math.Abs(math.Sin(diffDir*HillPetalNum/2.0)+1.5) + 2.0
+	// 尖花瓣状
+	dist := -math.Abs(math.Sin(diffDir*HillPetalNum/2.0)) + 2.0
+	return int(dist * float64(h.r))
 }
