@@ -32,6 +32,16 @@ const (
 	RidgeHeightMedian   = 7   // ridge 高度中间数 在此基础上浮动
 	HillHeightMedian    = 5   // hill 高度中间数 在此基础上浮动
 	DropsCohesiveDistSq = 9.0 // drops凝聚力距离平方
+	// 水滴之间的吸引力度 类似于万有引力常量
+	AttractPowerDecay = 0.25
+	// 距离平方超过这个值 就会被等比例缩减速度 但是保持方向
+	MinDistToReduce = 2
+)
+
+const (
+	// drawFlag 绘制参数
+	DrawFlagField  = iota << 1 // 绘制地形落差场
+	DrawFlagHisway = iota      // 绘制水滴轨迹
 )
 
 // 方案二(un done) 计算好地形场向量 没有流量向量
@@ -666,11 +676,6 @@ func main() {
 	log.Printf("waterMap.sum(h)=%d events=%d", w.SumH(), w.evtIdx)
 }
 
-const (
-	DrawFlagField  = iota << 1
-	DrawFlagHisway = iota
-)
-
 func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom int, riverArrowScale float64, drops []*Droplet, drawFlag int, colorTplStep int) {
 	height := m.height
 	width := m.width
@@ -901,11 +906,6 @@ func ImgToFile(outputFilePath string, img *image.RGBA, format string) {
 //	return nil, nil
 //}
 
-const (
-	// 水滴之间的吸引力度 类似于万有引力常量
-	AttractPowerDecay = 0.25
-)
-
 // 会改变d的方向 即会改变 vx,vy 值
 func (d *Droplet) CloseTo(target *Droplet, distSquare float32) {
 	//
@@ -913,11 +913,6 @@ func (d *Droplet) CloseTo(target *Droplet, distSquare float32) {
 	d.vx = d.vx + (target.x-d.x)*float32(distSquareRoot)*AttractPowerDecay
 	d.vy = d.vy + (target.y-d.y)*float32(distSquareRoot)*AttractPowerDecay
 }
-
-const (
-	// 距离平方超过这个值 就会被等比例缩减速度 但是保持方向
-	MinDistToReduce = 2
-)
 
 func (d *Droplet) ReduceSpeed() {
 	vSquare := d.vx*d.vx + d.vy*d.vy
