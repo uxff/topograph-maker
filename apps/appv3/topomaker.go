@@ -51,7 +51,7 @@ const (
 
 const (
 	// Hill 的花瓣数量
-	HillPetalNum = 5
+	HillPetalNum = 3
 )
 
 const (
@@ -547,6 +547,12 @@ func (d *WaterDot) getPostQuanNeighbors(arrNei []struct{ x, y int }, w *WaterMap
 	return mostQuanLevel, highMap[mostQuanLevel]
 }
 
+type PetalFlag struct {
+	Shape    int     // 形状
+	PetalNum float64 // 花瓣数
+	Sharp    float64 // 锋利度
+}
+
 func main() {
 	rand.Seed(int64(time.Now().UnixNano()))
 
@@ -570,6 +576,11 @@ func main() {
 	var drawFlag = flag.Int("draw-flag", 0, "draw flag: 1=draw filed vecor in topomap 2=draw hisway of droplet")
 	var stuckNum = flag.Int("stuck", 0, "stuck hill number, hill in stuck area will pressed, even height be 0")
 	var colorTplStep = flag.Int("color-tpl-step", 0, "color tpl file step line, will igore there step in tpl")
+
+	petalFlag := &PetalFlag{}
+	flag.IntVar(&petalFlag.Shape, "petal-shape", 1, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
+	flag.Float64Var(&petalFlag.PetalNum, "petal-num", 3, "petal numbers of hill")
+	flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 1.0, "petal sharp, 越大越锋利")
 
 	flag.Parse()
 
@@ -687,7 +698,7 @@ func main() {
 				for _, r := range hills {
 					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
 					//rn := float64(r.tiltLen)*math.Sin(r.tiltDir-math.Atan2(float64(y), float64(x))) + float64(r.r)	// 尝试倾斜地图中的圆环 尝试失败
-					rn := r.R(x, y) //(r.r) // 使用花瓣半径效果好
+					rn := r.R(x, y, petalFlag) //(r.r) // 使用花瓣半径效果好
 					if distM <= int(rn*rn) {
 						// 产生的ring中间隆起
 						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
@@ -908,7 +919,6 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	//log.Printf("ridge baseTowardX,baseTowardY=%d,%d  squar=%d", baseTowardX, baseTowardY, baseTowardX*baseTowardX+baseTowardY*baseTowardY)
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
-		// todo max height as const
 		r.h = rand.Int()%RidgeHeightMedian + RidgeHeightMedian/2
 		if ri == 0 {
 			// 第一个
@@ -1041,13 +1051,19 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 // get radius 一个点(x,y)看hill的边距离 hill是三角形 不同视角看到的距离不一样
 // 返回花瓣状距离 花瓣hill产生的高原效果特别好
 // todo: 有模糊横线 精度损失导致
-func (h *Hill) R(x, y int) int {
+func (h *Hill) R(x, y int, petalFlag *PetalFlag) int {
 	tarDir := math.Atan2(float64(y-h.y), float64(x-h.x))
 	diffDir := tarDir - h.tiltDir // 找到方向差
 
-	// 圆花瓣状
-	//dist := math.Abs(math.Sin(diffDir*HillPetalNum/2.0)+1.5) + 2.0
-	// 尖花瓣状
-	dist := -math.Abs(math.Sin(diffDir*HillPetalNum/2.0)) + 2.0
-	return int(dist * float64(h.r))
+	switch petalFlag.Shape {
+	case 1:
+		// 圆花瓣状
+		dist := math.Abs(math.Sin(diffDir*petalFlag.PetalNum)+1.5) + 2.0
+		return int(dist * float64(h.r))
+	case 2:
+		// 尖花瓣状
+		dist := -math.Abs(math.Sin(diffDir*petalFlag.PetalNum/2.0)) + 2.0
+		return int(dist * float64(h.r))
+	}
+	return h.r
 }
