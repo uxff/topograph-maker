@@ -28,6 +28,11 @@ import (
 )
 
 const colorTplFile = "./image/color-tpl2.png"
+const (
+	RidgeHeightMedian   = 7   // ridge 高度中间数 在此基础上浮动
+	HillHeightMedian    = 5   // hill 高度中间数 在此基础上浮动
+	DropsCohesiveDistSq = 9.0 // drops凝聚力距离平方
+)
 
 // 方案二(un done) 计算好地形场向量 没有流量向量
 // 随机撒水珠 水滴会移动 移动的时候会动态影响周边的其他水滴
@@ -261,11 +266,11 @@ func (d *Droplet) Move(m *Topomap, w *WaterMap, drops []*Droplet, step int) {
 	// 地形场加速
 	//d.vx, d.vy = (d.vx+w.data[oldIdx].xPower)/2, (d.vy+w.data[oldIdx].yPower)/2
 
-	// 距离平方在2以内的WaterDot有吸引力 // todo 使用分层数组
+	// 距离平方在2以内的WaterDot有吸引力 // todo 使用分层数组索引
 	for i := 0; i < len(drops); i += 4 {
 		di := drops[i+((step)%4)] // 几率变成4分之1 但是不会重复，会轮询
 		distSquare := (di.x-d.x)*(di.x-d.x) + (di.y-d.y)*(di.y-d.y)
-		if distSquare < 9.0 {
+		if distSquare < DropsCohesiveDistSq {
 			// di 是在范围sqrt(8)以内的水滴
 			d.CloseTo(di, distSquare) // 靠近
 		}
@@ -808,11 +813,11 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	//baseTowardX, baseTowardY := (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide), (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide)
 	baseTowardX1, baseTowardY1 := randomDir()
 	baseTowardX, baseTowardY := int(baseTowardX1*float32(ridgeWide)), int(baseTowardY1*float32(ridgeWide))
-	log.Printf("baseTowardX,baseTowardY=%d,%d  sqare=%d", baseTowardX, baseTowardY, baseTowardX*baseTowardX+baseTowardY*baseTowardY)
+	log.Printf("ridge baseTowardX,baseTowardY=%d,%d  squar=%d", baseTowardX, baseTowardY, baseTowardX*baseTowardX+baseTowardY*baseTowardY)
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
 		// todo max height as const
-		r.h = rand.Int()%(7) + 3
+		r.h = rand.Int()%RidgeHeightMedian + RidgeHeightMedian/2
 		if ri == 0 {
 			// 第一个
 			r.x, r.y, r.r = (rand.Int() % mWidth), (rand.Int() % mHeight), (rand.Int()%ridgeWide)/2+ridgeWide/2
@@ -938,9 +943,9 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 	for ri, _ := range hills {
 		r := &hills[ri]
 		// todo 地图边框附近不要去
-		r.x, r.y = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge
+		r.x, r.y, r.h = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge, rand.Int()%HillHeightMedian+HillHeightMedian/2
 		// 倾斜度 todo tilt: 未生效
-		r.tiltDir, r.tiltLen, r.r, r.h = rand.Float64()*math.Pi*2, (rand.Int()%20)+1, int(math.Sqrt(float64(rand.Int()%(hillWide*hillWide+1)))), (rand.Int()%(5) + 2)
+		r.tiltDir, r.tiltLen, r.r = rand.Float64()*math.Pi*2, (rand.Int()%20)+1, int(math.Sqrt(float64(rand.Int()%(hillWide*hillWide+1))))
 		// todo max height as const
 		if ri%3 == 1 {
 			r.h *= -1
