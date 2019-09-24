@@ -50,11 +50,6 @@ const (
 )
 
 const (
-	// Hill 的花瓣数量
-	HillPetalNum = 3
-)
-
-const (
 	// drawFlag 绘制参数
 	DrawFlagField  = iota << 1 // 绘制地形落差场
 	DrawFlagHisway = iota      // 绘制水滴轨迹
@@ -578,7 +573,7 @@ func main() {
 	var colorTplStep = flag.Int("color-tpl-step", 0, "color tpl file step line, will igore there step in tpl")
 
 	petalFlag := &PetalFlag{}
-	flag.IntVar(&petalFlag.Shape, "petal-shape", 1, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
+	flag.IntVar(&petalFlag.Shape, "petal-shape", 2, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
 	flag.Float64Var(&petalFlag.PetalNum, "petal-num", 3, "petal numbers of hill")
 	flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 1.0, "petal sharp, 越大越锋利")
 
@@ -1052,18 +1047,21 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 // 返回花瓣状距离 花瓣hill产生的高原效果特别好
 // todo: 有模糊横线 精度损失导致
 func (h *Hill) R(x, y int, petalFlag *PetalFlag) int {
-	tarDir := math.Atan2(float64(y-h.y), float64(x-h.x))
-	diffDir := tarDir - h.tiltDir // 找到方向差
 
 	switch petalFlag.Shape {
 	case 1:
 		// 圆花瓣状
+		diffDir := math.Atan2(float64(y-h.y), float64(x-h.x)) - h.tiltDir // 找到方向差
 		dist := math.Abs(math.Sin(diffDir*petalFlag.PetalNum)+1.5) + 2.0
 		return int(dist * float64(h.r))
 	case 2:
-		// 尖花瓣状
+		// 尖花瓣状 需要加大hill-wide 否则都是细线
+		diffDir := math.Atan2(float64(y-h.y), float64(x-h.x)) - h.tiltDir // 找到方向差
 		dist := -math.Abs(math.Sin(diffDir*petalFlag.PetalNum/2.0)) + 2.0
 		return int(dist * float64(h.r))
+	default:
+		//原型 相同hill-wide，比其他2种占用面积大
 	}
+	//
 	return h.r
 }
