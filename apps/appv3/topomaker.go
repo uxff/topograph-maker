@@ -6,6 +6,7 @@
 	./topomaker --zoom 1 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 20 --ridge-len 50 --ridge-wide 20 --dropnum 0 --times 1 --color-tpl-step 10
 	# excellent
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 150 --ridge 40 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 10 # excellent
+	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 100 --ridge 50 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 15
     todo: table lize with http server
 */
 package main
@@ -582,6 +583,43 @@ func main() {
 	}
 	//log.Println("ridgeHills=", ridgeHills)
 
+	// no terrian in stuck area
+	stuckHills := MakeHills(width, height, width/3, 3)
+	// strip hills from stuckHills
+	for sti := range stuckHills {
+		stuckedCnt := 0
+		for hi := 0; hi < len(hills); hi++ {
+			distM := (hills[hi].x-stuckHills[sti].x)*(hills[hi].x-stuckHills[sti].x) + (hills[hi].y-stuckHills[sti].y)*(hills[hi].y-stuckHills[sti].y)
+			if distM < stuckHills[sti].r*stuckHills[sti].r {
+				stuckedCnt++
+				//log.Printf("a stucked hill(%d/%d)", hi, len(hills))
+				//hills = append(hills[:hi], hills[hi+1:]...)
+				//hi--
+				hills[hi].h /= 4
+				if hi%2 == 1 {
+				} else {
+					//hills[hi].h *= 2
+				}
+			}
+		}
+
+		for rhi := 0; rhi < len(ridgeHills); rhi++ {
+			distM := (ridgeHills[rhi].x-stuckHills[sti].x)*(ridgeHills[rhi].x-stuckHills[sti].x) + (ridgeHills[rhi].y-stuckHills[sti].y)*(ridgeHills[rhi].y-stuckHills[sti].y)
+			if distM < stuckHills[sti].r*stuckHills[sti].r {
+				stuckedCnt++
+				//log.Printf("a stucked ridgeHill(%d/%d)", rhi, len(ridgeHills))
+				//ridgeHills = append(ridgeHills[:rhi], ridgeHills[rhi+1:]...)
+				//rhi--
+				ridgeHills[rhi].h /= 4
+				if rhi%2 == 1 {
+				} else {
+					//ridgeHills[rhi].h *= 2
+				}
+			}
+		}
+		log.Printf("hills stucked:%d/%d", stuckedCnt, len(hills)+len(ridgeHills))
+	}
+
 	log.Printf("will fill hills and ridges to TopoMap")
 
 	// 生成地图 制造地形 将上面生成的ridge和hills输出到m上
@@ -673,7 +711,7 @@ func main() {
 		log.Printf("[%d]=%+v", di, *d)
 	}
 
-	log.Printf("waterMap.sum(h)=%d events=%d", w.SumH(), w.evtIdx)
+	log.Printf("waterMap.sum(h)=%d w.events=%d m.events=%d", w.SumH(), w.evtIdx, m.evtIdx)
 }
 
 func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom int, riverArrowScale float64, drops []*Droplet, drawFlag int, colorTplStep int) {
@@ -818,7 +856,7 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	//baseTowardX, baseTowardY := (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide), (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide)
 	baseTowardX1, baseTowardY1 := randomDir()
 	baseTowardX, baseTowardY := int(baseTowardX1*float32(ridgeWide)), int(baseTowardY1*float32(ridgeWide))
-	log.Printf("ridge baseTowardX,baseTowardY=%d,%d  squar=%d", baseTowardX, baseTowardY, baseTowardX*baseTowardX+baseTowardY*baseTowardY)
+	//log.Printf("ridge baseTowardX,baseTowardY=%d,%d  squar=%d", baseTowardX, baseTowardY, baseTowardX*baseTowardX+baseTowardY*baseTowardY)
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
 		// todo max height as const
