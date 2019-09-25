@@ -679,7 +679,7 @@ func main() {
 				// 收集ridgeHills产生的altitude
 				for _, r := range ridgeHills {
 					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
-					rn := r.R(x, y, petalFlag) //(r.r)
+					rn := (r.r) //r.R(x, y, petalFlag) // R 会造成圆圈齿效果 不推荐
 					if distM <= r.r*r.r {
 						//tmpColor++
 						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
