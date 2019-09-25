@@ -555,7 +555,7 @@ func main() {
 	var width, height int = 500, 500
 	flag.IntVar(&width, "w", width, "width of map")
 	flag.IntVar(&height, "h", width, "height of map")
-	var outname = flag.String("out", "testmap", "image filename of output")
+	var outname = flag.String("out", "topomap", "image filename of output")
 	var outdir = flag.String("outdir", "output", "out put dir")
 	var nHills = flag.Int("hill", 100, "hill number for making rand topo by hill")
 	var hillWide = flag.Int("hill-wide", 100, "hill wide for making rand topo by hill")
@@ -618,10 +618,10 @@ func main() {
 				//log.Printf("a stucked hill(%d/%d)", hi, len(hills))
 				//hills = append(hills[:hi], hills[hi+1:]...)
 				//hi--
-				hills[hi].h /= 4
-				if hi%2 == 1 {
+				if sti%2 == 1 {
+					hills[hi].h /= 4
 				} else {
-					//hills[hi].h *= 2
+					hills[hi].h += 4
 				}
 			}
 		}
@@ -633,17 +633,17 @@ func main() {
 				//log.Printf("a stucked ridgeHill(%d/%d)", rhi, len(ridgeHills))
 				//ridgeHills = append(ridgeHills[:rhi], ridgeHills[rhi+1:]...)
 				//rhi--
-				ridgeHills[rhi].h /= 2
-				if rhi%2 == 1 {
+				if sti%2 == 1 {
+					ridgeHills[rhi].h /= 2
 				} else {
-					//ridgeHills[rhi].h *= 2
+					ridgeHills[rhi].h += 4
 				}
 			}
 		}
 		log.Printf("hills stucked:%d/%d", stuckedCnt, len(hills)+len(ridgeHills))
 	}
 
-	log.Printf("will fill hills and ridges to TopoMap")
+	log.Printf("will fill hills and ridges to TopoMap(all times:%d)", width*height*(len(hills)+len(ridgeHills)))
 
 	var maxColor float32 = 1
 	wgf := &sync.WaitGroup{}
@@ -908,6 +908,8 @@ ridgeWide = Hill wide
 */
 func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	ridgeHills := make([]Hill, ridgeLen)
+	widthEdge := mWidth / 8
+	heightEdge := mHeight / 8
 	// toward as step
 	//baseTowardX, baseTowardY := (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide), (rand.Int()%ridgeWide)-(rand.Int()%ridgeWide)
 	baseTowardX1, baseTowardY1 := randomDir()
@@ -918,7 +920,7 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 		r.h = rand.Int()%RidgeHeightMedian + RidgeHeightMedian/2
 		if ri == 0 {
 			// 第一个
-			r.x, r.y, r.r = (rand.Int() % mWidth), (rand.Int() % mHeight), (rand.Int()%ridgeWide)/2+ridgeWide/2
+			r.x, r.y, r.r = (rand.Int()%(mWidth-widthEdge*2))+widthEdge, (rand.Int()%(mHeight-heightEdge*2))+heightEdge, (rand.Int()%ridgeWide)/2+ridgeWide/2
 		} else {
 			// 其他 基础方向: ridgeHills[ri-1].x+baseTowardX 摆动:(rand.Int()%ridgeWide)/2-(rand.Int()%ridgeWide)/2
 			waveX, waveY := 0, 0
@@ -1025,8 +1027,8 @@ func randomDir() (x, y float32) {
 
 func MakeHills(width, height, hillWide, num int) []Hill {
 	// 随机n个圆圈 累加抬高 输出到m中
-	widthEdge := width / 15
-	heightEdge := height / 15
+	widthEdge := width / 9
+	heightEdge := height / 9
 	hills := make([]Hill, num)
 	for ri, _ := range hills {
 		r := &hills[ri]
@@ -1035,6 +1037,7 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 		// 倾斜度 todo tilt: 未生效
 		r.tiltDir, r.tiltLen, r.r = rand.Float64()*math.Pi*2, (rand.Int()%20)+1, int(math.Sqrt(float64(rand.Int()%(hillWide*hillWide+1))))
 		if ri%3 == 1 {
+			// 1/3 是反向海拔，成为盆地
 			r.h *= -1
 		}
 		//log.Printf("ri=%d h=%d s=%d", ri, r.h, (ri%2)*2-1)
