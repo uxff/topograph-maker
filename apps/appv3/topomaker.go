@@ -655,7 +655,7 @@ func main() {
 			select {
 			case ctmp, ok := <-maxColorCheckChan:
 				if !ok {
-					log.Printf("maxColorChan is closed")
+					log.Printf("maxColorChan is closed, couting done, maxColor=%f", maxColor)
 					maxColorCheckOver <- struct{}{}
 					return
 				}
@@ -716,9 +716,9 @@ func main() {
 	}
 	wgf.Wait()
 	close(maxColorCheckChan)
-	log.Printf("counting max color")
+	//log.Printf("counting max color")
 	<-maxColorCheckOver
-	log.Printf("will make drops, maxColor=%f", maxColor)
+	log.Printf("will make drops(n:%d)", *dropNum)
 	maxColor *= 1.2
 
 	w.AssignVector(&m, 3)
@@ -729,11 +729,11 @@ func main() {
 		drops[di] = MakeDroplet(&w)
 	}
 
-	log.Printf("will move drops")
+	log.Printf("will move drops(times:%d)", *times)
 	drops = DropletsMove(*times, drops, &m, &w)
 	log.Printf("update drops done. times=%d num drops=%d->%d", *times, *dropNum, len(drops))
 
-	log.Printf("will draw to image")
+	log.Printf("will draw to image(zoom:%d)", *zoom)
 	// then draw
 	img := image.NewRGBA(image.Rect(0, 0, width**zoom, height**zoom))
 
