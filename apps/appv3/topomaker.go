@@ -39,7 +39,8 @@ import (
 )
 
 // 等高线文件模板 取垂直第一列的像素
-const colorTplFile = "./image/color-tpl2.png"
+var colorTplFile = "./image/color-tpl2.png"
+
 const (
 	RidgeHeightMedian   = 7   // ridge 高度中间数 在此基础上浮动
 	HillHeightMedian    = 5   // hill 高度中间数 在此基础上浮动
@@ -577,6 +578,7 @@ func main() {
 	flag.IntVar(&petalFlag.Shape, "petal-shape", 2, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
 	flag.Float64Var(&petalFlag.PetalNum, "petal-num", 3, "petal numbers of hill")
 	flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 1.0, "petal sharp, 越大越锋利")
+	flag.StringVar(&colorTplFile, "color-tpl", colorTplFile, "color template file path")
 
 	flag.Parse()
 
@@ -677,7 +679,7 @@ func main() {
 				// 收集ridgeHills产生的altitude
 				for _, r := range ridgeHills {
 					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
-					rn := (r.r)
+					rn := r.R(x, y, petalFlag) //(r.r)
 					if distM <= r.r*r.r {
 						//tmpColor++
 						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
