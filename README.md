@@ -14,8 +14,11 @@ $ ./topomaker --zoom 3 -h 500 -w 500 --hill 30 --hill-wide 30 --ridge 10 --ridge
 
 todo: use updater
 
-# represent topomap:
-<img src="https://github.com/uxff/gravity_sim_go/raw/master/image/topomap-20180902070444.png">
+# represent topomap (4P):
+<img src="https://github.com/uxff/topograph-maker/raw/master/image/topomap-20190925215426.png">
+<img src="https://github.com/uxff/topograph-maker/raw/master/image/topomap-20190924224007.png">
+<img src="https://github.com/uxff/topograph-maker/raw/master/image/topomap-20190924223926.png">
+<img src="https://github.com/uxff/topograph-maker/raw/master/image/topomap-20190924223543.png">
 
 - ridge appear
 - highland cover
