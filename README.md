@@ -20,3 +20,8 @@ todo: use updater
 - ridge appear
 - highland cover
 
+# sundries 
+batch rename
+```
+ for i in `ls output/ `; do echo mv  $i topomap${i#*map}; mv output/$i  output/topomap${i#*map}; done
+```
