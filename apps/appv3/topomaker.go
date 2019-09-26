@@ -683,7 +683,7 @@ func main() {
 				for _, r := range ridgeHills {
 					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
 					rn := r.R(x, y, petalFlag) //(r.r) // R() 会造成圆圈齿效果 不推荐
-					if distM <= r.r*r.r {
+					if distM <= rn*rn {
 						//tmpColor++
 						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
 						//tmpColor += float32(r.h) - float32(float64(r.h)*(math.Sqrt(float64(distM)/float64((rn*rn))))) //todo test 效果不好
@@ -1056,13 +1056,13 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 // get radius 一个点(x,y)看hill的边距离 hill是三角形 不同视角看到的距离不一样 返回的R不能比hill.r大
 // 返回花瓣状距离 花瓣hill产生的高原效果特别好
 // todo: 有模糊横线 精度损失导致
-func (h *Hill) R(x, y int, petalFlag *PetalFlag) int {
+func (h *Hill) R(x, y int, petalFlag *PetalFlag) (r int) {
 
 	switch petalFlag.Shape {
 	case 1:
 		// 尖角瓣状 需要加大hill-wide 否则都是细线  1-abs(sin(dir))
-		diffDir := math.Atan2(float64(y-h.y), float64(x-h.x)) - h.tiltDir // 找到方向差
-		dist := 1.0 - math.Abs(math.Sin(diffDir*petalFlag.PetalNum/2.0))*petalFlag.Sharp
+		tarDir := math.Atan2(float64(y-h.y), float64(x-h.x)) // 找到方向差
+		dist := 1.0 - math.Abs(math.Sin((h.tiltDir-tarDir)*petalFlag.PetalNum/2.0))*petalFlag.Sharp
 		return int(dist * float64(h.r))
 	case 2:
 		// 圆花瓣状 细腰长叶花瓣 1-sin(dir)
@@ -1077,7 +1077,7 @@ func (h *Hill) R(x, y int, petalFlag *PetalFlag) int {
 		return int(dist * float64(h.r))
 	default:
 		//原型 相同hill-wide，比其他2种占用面积大
+		r = h.r
 	}
-	//
-	return h.r
+	return
 }
