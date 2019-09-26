@@ -577,7 +577,7 @@ func main() {
 	petalFlag := &PetalFlag{}
 	flag.IntVar(&petalFlag.Shape, "petal-shape", 2, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
 	flag.Float64Var(&petalFlag.PetalNum, "petal-num", 3, "petal numbers of hill")
-	flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 1.0, "petal sharp, 越大越锋利")
+	flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 0.5, "petal sharp, 取值 0-1.0, 越大越锋利")
 	flag.StringVar(&colorTplFile, "color-tpl", colorTplFile, "color template file path")
 
 	flag.Parse()
@@ -615,30 +615,33 @@ func main() {
 		stuckedCnt := 0
 		for hi := 0; hi < len(hills); hi++ {
 			distM := (hills[hi].x-stuckHills[sti].x)*(hills[hi].x-stuckHills[sti].x) + (hills[hi].y-stuckHills[sti].y)*(hills[hi].y-stuckHills[sti].y)
-			if distM < stuckHills[sti].r*stuckHills[sti].r {
+			stuckR := stuckHills[sti].R(hills[hi].x, hills[hi].y, petalFlag)
+			if distM < stuckR*stuckR {
 				stuckedCnt++
 				//log.Printf("a stucked hill(%d/%d)", hi, len(hills))
 				//hills = append(hills[:hi], hills[hi+1:]...)
 				//hi--
-				if sti%2 == 1 {
+				// todo: do not accumulate calculate stucks
+				if sti%2 == 0 {
 					hills[hi].h /= 4
 				} else {
-					hills[hi].h += 4
+					hills[hi].h += 2
 				}
 			}
 		}
 
 		for rhi := 0; rhi < len(ridgeHills); rhi++ {
 			distM := (ridgeHills[rhi].x-stuckHills[sti].x)*(ridgeHills[rhi].x-stuckHills[sti].x) + (ridgeHills[rhi].y-stuckHills[sti].y)*(ridgeHills[rhi].y-stuckHills[sti].y)
-			if distM < stuckHills[sti].r*stuckHills[sti].r {
+			stuckR := stuckHills[sti].R(ridgeHills[rhi].x, ridgeHills[rhi].y, petalFlag)
+			if distM < stuckR*stuckR {
 				stuckedCnt++
 				//log.Printf("a stucked ridgeHill(%d/%d)", rhi, len(ridgeHills))
 				//ridgeHills = append(ridgeHills[:rhi], ridgeHills[rhi+1:]...)
 				//rhi--
-				if sti%2 == 1 {
+				if sti%2 == 0 {
 					ridgeHills[rhi].h /= 2
 				} else {
-					ridgeHills[rhi].h += 4
+					ridgeHills[rhi].h += 2
 				}
 			}
 		}
@@ -679,7 +682,7 @@ func main() {
 				// 收集ridgeHills产生的altitude
 				for _, r := range ridgeHills {
 					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
-					rn := (r.r) //r.R(x, y, petalFlag) // R 会造成圆圈齿效果 不推荐
+					rn := r.R(x, y, petalFlag) //(r.r) // R() 会造成圆圈齿效果 不推荐
 					if distM <= r.r*r.r {
 						//tmpColor++
 						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
@@ -1038,6 +1041,7 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 		r.x, r.y, r.h = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge, rand.Int()%HillHeightMedian+HillHeightMedian/2
 		// 倾斜度 todo tilt: 未生效
 		r.tiltDir, r.tiltLen, r.r = rand.Float64()*math.Pi*2, (rand.Int()%20)+1, int(math.Sqrt(float64(rand.Int()%(hillWide*hillWide+1))))
+		//r.r, r.h = hillWide, 10 /// todo: this is debug
 		if ri%3 == 1 {
 			// 1/3 是反向海拔，成为盆地
 			r.h *= -1
@@ -1049,21 +1053,27 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 	return hills
 }
 
-// get radius 一个点(x,y)看hill的边距离 hill是三角形 不同视角看到的距离不一样
+// get radius 一个点(x,y)看hill的边距离 hill是三角形 不同视角看到的距离不一样 返回的R不能比hill.r大
 // 返回花瓣状距离 花瓣hill产生的高原效果特别好
 // todo: 有模糊横线 精度损失导致
 func (h *Hill) R(x, y int, petalFlag *PetalFlag) int {
 
 	switch petalFlag.Shape {
 	case 1:
-		// 圆花瓣状
+		// 尖角瓣状 需要加大hill-wide 否则都是细线  1-abs(sin(dir))
 		diffDir := math.Atan2(float64(y-h.y), float64(x-h.x)) - h.tiltDir // 找到方向差
-		dist := math.Sin(diffDir*petalFlag.PetalNum)/2.0 + 1.0
+		dist := 1.0 - math.Abs(math.Sin(diffDir*petalFlag.PetalNum/2.0))*petalFlag.Sharp
 		return int(dist * float64(h.r))
 	case 2:
-		// 尖花瓣状 需要加大hill-wide 否则都是细线
+		// 圆花瓣状 细腰长叶花瓣 1-sin(dir)
 		diffDir := math.Atan2(float64(y-h.y), float64(x-h.x)) - h.tiltDir // 找到方向差
-		dist := -math.Abs(math.Sin(diffDir*petalFlag.PetalNum/2.0)) + 2.0
+		//dist := math.Sin(diffDir*petalFlag.PetalNum)/2.0 + 1.0            // [0.5-1.5]
+		dist := 1.0 - (math.Sin(diffDir*petalFlag.PetalNum)+1.0)/2.0*petalFlag.Sharp
+		return int(dist * float64(h.r))
+	case 3:
+		// 圆形瓣状 圆润丰满 1-abs(sin(dir))
+		diffDir := math.Atan2(float64(y-h.y), float64(x-h.x)) - h.tiltDir // 找到方向差
+		dist := 1.0 - (1.0-math.Abs(math.Sin(diffDir*petalFlag.PetalNum/2.0)))*petalFlag.Sharp
 		return int(dist * float64(h.r))
 	default:
 		//原型 相同hill-wide，比其他2种占用面积大
