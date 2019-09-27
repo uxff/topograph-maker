@@ -700,7 +700,7 @@ func main() {
 					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
 					//rn := float64(r.tiltLen)*math.Sin(r.tiltDir-math.Atan2(float64(y), float64(x))) + float64(r.r)	// 尝试倾斜地图中的圆环 尝试失败
 					rn := r.R(x, y, petalFlag) //(r.r) // 使用花瓣半径效果好
-					if distM <= int(rn*rn) {
+					if distM <= rn*rn {
 						// 产生的ring中间隆起
 						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
 						//tmpColor += float32(distM) / float32(rn*rn) * rand.Float32()
@@ -738,7 +738,7 @@ func main() {
 	drops = DropletsMove(*times, drops, &m, &w)
 	log.Printf("update drops done. times=%d num drops=%d->%d", *times, *dropNum, len(drops))
 
-	log.Printf("will draw to image(zoom:%d)", *zoom)
+	log.Printf("will draw to image(zoom:%d, width:%d, height:%d)", *zoom, width, height)
 	// then draw
 	img := image.NewRGBA(image.Rect(0, 0, width**zoom, height**zoom))
 
@@ -923,6 +923,7 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
 		r.h = rand.Int()%RidgeHeightMedian + RidgeHeightMedian/2
+		r.tiltDir, r.tiltLen = rand.Float64()*math.Pi*2, (rand.Int()%20)+1
 		if ri == 0 {
 			// 第一个
 			r.x, r.y, r.r = (rand.Int()%(mWidth-widthEdge*2))+widthEdge, (rand.Int()%(mHeight-heightEdge*2))+heightEdge, (rand.Int()%ridgeWide)/2+ridgeWide/2
@@ -1061,8 +1062,8 @@ func (h *Hill) R(x, y int, petalFlag *PetalFlag) (r int) {
 	switch petalFlag.Shape {
 	case 1:
 		// 尖角瓣状 需要加大hill-wide 否则都是细线  1-abs(sin(dir))
-		tarDir := math.Atan2(float64(y-h.y), float64(x-h.x)) // 找到方向差
-		dist := 1.0 - math.Abs(math.Sin((h.tiltDir-tarDir)*petalFlag.PetalNum/2.0))*petalFlag.Sharp
+		diffDir := math.Atan2(float64(y-h.y), float64(x-h.x)) - h.tiltDir // 找到方向差
+		dist := 1.0 - math.Abs(math.Sin(diffDir*petalFlag.PetalNum/2.0))*petalFlag.Sharp
 		return int(dist * float64(h.r))
 	case 2:
 		// 圆花瓣状 细腰长叶花瓣 1-sin(dir)
