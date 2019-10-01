@@ -872,6 +872,10 @@ func DrawToImg(img *image.RGBA, m *Topomap, w *WaterMap, maxColor float32, zoom 
 			img.Set(wi, i, c)
 		}
 	}
+	// 加1条白色
+	for wi := 0; wi < 5; wi++ {
+		img.Set(wi, len(cs), color.White)
+	}
 }
 
 func DrawToConsole(m *Topomap) {
