@@ -17,6 +17,8 @@
 	- ridge hills # done
 	- river flow # done
 	- river erode topomap # developing
+	- make ridges like forks and strings
+	- enhance the ridges beside edge of continent
 
 */
 package main
