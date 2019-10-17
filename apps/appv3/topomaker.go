@@ -1,13 +1,9 @@
 /*
 	usage: time ./topomaker -w 800 -h 800 -hill 200 -hill-wide 200 -ridge 2 -ridge-wide 50 -times 1000 -dropnum 100 -zoom 5
-	./topomaker --zoom 3 -h 500 -w 500 --hill 0 --ridge 50 --ridge-len 50 --ridge-wide 50 --dropnum 100 --times 1000
-	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 15 --ridge-len 40 --ridge-wide 50 --dropnum 0 --times 1 --color-tpl-step 7
-	./topomaker --zoom 3 -h 500 -w 500 --hill 200 --hill-wide 150 --ridge 15 --ridge-len 40 --ridge-wide 20 --dropnum 0 --times 1 --color-tpl-step 3
-	./topomaker --zoom 1 -h 500 -w 500 --hill 200 --hill-wide 100 --ridge 20 --ridge-len 50 --ridge-wide 20 --dropnum 0 --times 1 --color-tpl-step 10
-	# excellent
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 150 --ridge 40 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 10 # excellent
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 100 --ridge 50 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 15
 	./topomaker --zoom 1 -h 800 -w 800 --hill 400 --hill-wide 100 --ridge 30 --ridge-len 20 --ridge-wide 20 --dropnum 0 --color-tpl-step 20 --stuck 3 --petal-shape 2 --petal-num 4
+	./topomaker --zoom 1 -h 800 -w 800 --hill 500 --hill-wide 100 --ridge 40 --ridge-len 25 --ridge-wide 30 --dropnum 0 --color-tpl-step 18 --stuck 6 --petal-num 3 --petal-shape 3
 
     todo: table lize with http server
 	- parallel fill hills to topomap # done
@@ -611,7 +607,7 @@ func main() {
 	//log.Println("ridgeHills=", ridgeHills)
 
 	// no terrian in stuck area
-	stuckHills := MakeHills(width, height, width/3, *stuckNum)
+	stuckHills := MakeHills(width, height, width/2, *stuckNum)
 	// strip hills from stuckHills
 	for sti := range stuckHills {
 		stuckedCnt := 0
@@ -728,7 +724,9 @@ func main() {
 	log.Printf("will make drops(n:%d)", *dropNum)
 	maxColor *= 1.2
 
-	w.AssignVector(&m, 3)
+	if *dropNum > 0 {
+		w.AssignVector(&m, 3)
+	}
 
 	// 生成一组随机*Droplet
 	drops := make([]*Droplet, *dropNum)
