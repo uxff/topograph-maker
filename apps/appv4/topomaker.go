@@ -3,7 +3,7 @@
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 150 --ridge 40 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 10 # excellent
 	./topomaker --zoom 1 -h 1000 -w 1000 --hill 1000 --hill-wide 100 --ridge 50 --ridge-len 30 --ridge-wide 40 --dropnum 0 --times 1000 --color-tpl-step 15
 	./topomaker --zoom 1 -h 800 -w 800 --hill 400 --hill-wide 100 --ridge 30 --ridge-len 20 --ridge-wide 20 --dropnum 0 --color-tpl-step 20 --stuck 3 --petal-shape 2 --petal-num 4
-	./topomaker --zoom 1 -h 800 -w 800 --hill 500 --hill-wide 100 --ridge 40 --ridge-len 25 --ridge-wide 30 --dropnum 0 --color-tpl-step 18 --stuck 6 --petal-num 3 --petal-shape 3
+	./topomaker --zoom 1 -h 800 -w 800 --dropnum 0 --color-tpl-step 18
 
     todo: table lize with http server
 	- parallel fill hills to topomap # done
@@ -22,9 +22,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"image"
 	"image/color"
 	"image/png"
+	"io/ioutil"
 	"log"
 	"math"
 	"math/rand"
@@ -548,32 +550,79 @@ type PetalFlag struct {
 	Sharp    float64 // 锋利度
 }
 
+type HillGroup struct {
+	List []struct {
+		Num  int // num
+		Wide int // each wide
+		Len  int // each len
+	}
+	PetalFlag
+}
+
+// 多级组配置 最终组成hill 此版本都用此配置
+type LayoutConfig struct {
+	RidgeGroup HillGroup
+	StuckGroup HillGroup
+	HillGroup  HillGroup
+}
+
+func (h HillGroup) ToHills(width, height int) []Hill {
+	hills := make([]Hill, 0)
+	for i := range h.List {
+		hills = append(hills, MakeHills(width, height, h.List[i].Wide, h.List[i].Num)...)
+	}
+
+	return hills
+}
+
 func main() {
 	rand.Seed(int64(time.Now().UnixNano()))
 
+	//mePath, _ := exec.LookPath(os.Args[0])
+	var layoutYamlFile = "layout.yaml"
+
+	flag.StringVar(&layoutYamlFile, "layout", layoutYamlFile, "layout yaml file")
+
+	layoutConf := &LayoutConfig{}
+	layoutContent, err := ioutil.ReadFile(layoutYamlFile)
+	if err != nil {
+		log.Printf("cannot read yaml file: %v", err)
+		log.Print(yaml.Marshal(layoutConf))
+		return
+	}
+
+	err = yaml.Unmarshal(layoutContent, layoutConf)
+	if err != nil {
+		log.Printf("cannot parse yaml file: %v", err)
+		log.Print(yaml.Marshal(layoutConf))
+		return
+	}
+
 	var width, height int = 500, 500
+
 	flag.IntVar(&width, "w", width, "width of map")
 	flag.IntVar(&height, "h", width, "height of map")
 
 	var outname = flag.String("out", "topomap", "image filename of output")
 	var outdir = flag.String("outdir", "output", "out put dir")
 
-	var nHills = flag.Int("hill", 100, "hill number for making rand topo by hill")
-	var hillWide = flag.Int("hill-wide", 100, "hill wide for making rand topo by hill")
+	//var nHills = flag.Int("hill", 100, "hill number for making rand topo by hill")
+	//var hillWide = flag.Int("hill-wide", 100, "hill wide for making rand topo by hill")
 
 	// ridges 数组
-	var nRidge = flag.Int("ridge", 1, "num of ridges for making ridges")
-	var ridgeWide = flag.Int("ridge-wide", 50, "ridge wide for making ridge each")
-	var ridgeLen = flag.Int("ridge-len", 100, "ridge length when making ridge each")
+	//var nRidge = flag.Int("ridge", 1, "num of ridges for making ridges")
+	//var ridgeWide = flag.Int("ridge-wide", 50, "ridge wide for making ridge each")
+	//var ridgeLen = flag.Int("ridge-len", 100, "ridge length when making ridge each")
 
 	// stuck
-	var stuckNum = flag.Int("stuck", 0, "stuck hill number, hill in stuck area will pressed, even height be 0")
+	//var stuckNum = flag.Int("stuck", 0, "stuck hill number, hill in stuck area will pressed, even height be 0")
 
 	// petal
-	petalFlag := &PetalFlag{}
-	flag.IntVar(&petalFlag.Shape, "petal-shape", 2, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
-	flag.Float64Var(&petalFlag.PetalNum, "petal-num", 3, "petal numbers of hill")
-	flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 0.5, "petal sharp, 取值 0-1.0, 越大越锋利")
+	//petalFlag := &PetalFlag{}
+	//flag.IntVar(&petalFlag.Shape, "petal-shape", 2, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
+	//flag.Float64Var(&petalFlag.PetalNum, "petal-num", 3, "petal numbers of hill")
+	//flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 0.5, "petal sharp, 取值 0-1.0, 越大越锋利")
+
 	flag.StringVar(&colorTplFile, "color-tpl", colorTplFile, "color template file path")
 
 	// drops deprecated
@@ -605,27 +654,32 @@ func main() {
 		}
 	}
 
-	log.Printf("will make hills(n:%d,wide:%d)", *nHills, *hillWide)
-	// 随机n个圆圈 累加抬高 输出到m中
-	hills := MakeHills(width, height, *hillWide, *nHills)
+	allGenHillNum := 0
+	allGenRidgeNum := 0
 
-	log.Printf("will make ridge(n:%d, wide:%d)", *ridgeLen, *ridgeWide)
-	// 转换痕迹为ridge 为每个环分配随机半径 输出到m中
-	var ridgeHills []Hill
-	for ri := 0; ri < *nRidge; ri++ {
-		rand.Seed(time.Now().UnixNano() / 1000)
-		ridgeHills = append(ridgeHills, MakeRidge(*ridgeLen, *ridgeWide, width, height)...)
-	}
-	//log.Println("ridgeHills=", ridgeHills)
+	// 随机n个圆圈 累加抬高 输出到m中
+	hills := layoutConf.HillGroup.ToHills(width, height)
+	allGenHillNum += len(hills)
+	log.Printf("will make hills(n:%d)", allGenHillNum)
+
+	rand.Seed(time.Now().UnixNano())
+
+	ridgeHills := layoutConf.RidgeGroup.ToHills(width, height)
+	allGenRidgeNum += len(ridgeHills)
+	log.Printf("will make ridges(n:%d)", allGenRidgeNum)
+
+	rand.Seed(time.Now().UnixNano())
 
 	// no terrian in stuck area
-	stuckHills := MakeHills(width, height, width/2, *stuckNum)
+	stuckHills := layoutConf.StuckGroup.ToHills(width, height)
+	log.Printf("will make stucks(n:%d)", len(stuckHills))
+
 	// strip hills from stuckHills
 	for sti := range stuckHills {
 		stuckedCnt := 0
 		for hi := 0; hi < len(hills); hi++ {
 			distM := (hills[hi].x-stuckHills[sti].x)*(hills[hi].x-stuckHills[sti].x) + (hills[hi].y-stuckHills[sti].y)*(hills[hi].y-stuckHills[sti].y)
-			stuckR := stuckHills[sti].R(hills[hi].x, hills[hi].y, petalFlag)
+			stuckR := stuckHills[sti].R(hills[hi].x, hills[hi].y, &layoutConf.StuckGroup.PetalFlag)
 			if distM < stuckR*stuckR {
 				stuckedCnt++
 				//log.Printf("a stucked hill(%d/%d)", hi, len(hills))
@@ -642,7 +696,7 @@ func main() {
 
 		for rhi := 0; rhi < len(ridgeHills); rhi++ {
 			distM := (ridgeHills[rhi].x-stuckHills[sti].x)*(ridgeHills[rhi].x-stuckHills[sti].x) + (ridgeHills[rhi].y-stuckHills[sti].y)*(ridgeHills[rhi].y-stuckHills[sti].y)
-			stuckR := stuckHills[sti].R(ridgeHills[rhi].x, ridgeHills[rhi].y, petalFlag)
+			stuckR := stuckHills[sti].R(ridgeHills[rhi].x, ridgeHills[rhi].y, &layoutConf.StuckGroup.PetalFlag)
 			if distM < stuckR*stuckR {
 				stuckedCnt++
 				//log.Printf("a stucked ridgeHill(%d/%d)", rhi, len(ridgeHills))
@@ -692,7 +746,7 @@ func main() {
 				// 收集ridgeHills产生的altitude
 				for _, r := range ridgeHills {
 					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
-					rn := r.R(x, y, petalFlag) //(r.r) // R() 会造成圆圈齿效果 不推荐
+					rn := r.R(x, y, &layoutConf.RidgeGroup.PetalFlag) //(r.r) // R() 会造成圆圈齿效果 不推荐
 					if distM <= rn*rn {
 						//tmpColor++
 						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
@@ -709,7 +763,7 @@ func main() {
 				for _, r := range hills {
 					distM := (x-r.x)*(x-r.x) + (y-r.y)*(y-r.y)
 					//rn := float64(r.tiltLen)*math.Sin(r.tiltDir-math.Atan2(float64(y), float64(x))) + float64(r.r)	// 尝试倾斜地图中的圆环 尝试失败
-					rn := r.R(x, y, petalFlag) //(r.r) // 使用花瓣半径效果好
+					rn := r.R(x, y, &layoutConf.HillGroup.PetalFlag) //(r.r) // 使用花瓣半径效果好
 					if distM <= rn*rn {
 						// 产生的ring中间隆起
 						tmpColor += float32(r.h) - float32(float64(r.h)*math.Sqrt(math.Sqrt(float64(distM)/float64((rn*rn)))))
@@ -777,7 +831,7 @@ func main() {
 		go func() { DrawToConsole(&m); wgm.Done() }()
 	}
 	wgm.Wait()
-	log.Println("done w,h=", width, height, "maxColor=", maxColor, "nHills=", *nHills, "nRidge=", *nRidge, "ridgelen=", *ridgeLen)
+	log.Println("done w,h=", width, height, "maxColor=", maxColor, "nHills=", allGenHillNum, "nRidge=", allGenHillNum)
 	for di, d := range drops {
 		log.Printf("[%d]=%+v", di, *d)
 	}

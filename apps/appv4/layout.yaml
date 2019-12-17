@@ -1,0 +1,12 @@
+ridge-group:
+  - num: 10
+    wide: 50
+    len: 100
+  - num: 10
+    wide: 80
+    len: 80
+  - num: 10
+    wide: 100
+    len: 50
+stuck-group:
+  -
