@@ -1,12 +1,33 @@
-ridge-group:
-  - num: 10
-    wide: 50
-    len: 100
-  - num: 10
-    wide: 80
-    len: 80
-  - num: 10
-    wide: 100
-    len: 50
-stuck-group:
-  -
+ridgegroup:
+  list:
+    - num: 10
+      wide: 50
+      len: 100
+    - num: 10
+      wide: 80
+      len: 80
+    - num: 10
+      wide: 100
+      len: 50
+  petalflag:
+    shape: 0
+    petalnum: 0
+    sharp: 0
+stuckgroup:
+  list:
+    - num: 2
+      wide: 200
+      len: 1
+  petalflag:
+    shape: 0
+    petalnum: 0
+    sharp: 0
+hillgroup:
+  list:
+    - num: 500
+      wide: 50
+      len: 1
+  petalflag:
+    shape: 0
+    petalnum: 0
+    sharp: 0

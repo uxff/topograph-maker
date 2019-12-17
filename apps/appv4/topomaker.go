@@ -578,25 +578,25 @@ func (h HillGroup) ToHills(width, height int) []Hill {
 func main() {
 	rand.Seed(int64(time.Now().UnixNano()))
 
-	//mePath, _ := exec.LookPath(os.Args[0])
-	var layoutYamlFile = "layout.yaml"
+	var layoutYamlFile = "apps/appv4/layout.yaml"
 
 	flag.StringVar(&layoutYamlFile, "layout", layoutYamlFile, "layout yaml file")
 
 	layoutConf := &LayoutConfig{}
+
 	layoutContent, err := ioutil.ReadFile(layoutYamlFile)
 	if err != nil {
 		log.Printf("cannot read yaml file: %v", err)
-		log.Print(yaml.Marshal(layoutConf))
 		return
 	}
 
 	err = yaml.Unmarshal(layoutContent, layoutConf)
 	if err != nil {
 		log.Printf("cannot parse yaml file: %v", err)
-		log.Print(yaml.Marshal(layoutConf))
 		return
 	}
+
+	log.Printf("the layout: %+v", layoutConf)
 
 	var width, height int = 500, 500
 
