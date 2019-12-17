@@ -548,35 +548,66 @@ type PetalFlag struct {
 	Sharp    float64 // 锋利度
 }
 
+// 多级组配置 最终组成hill
+type LayoutConfig struct {
+	RidgeGroup []struct {
+		Num  int // num
+		Wide int // each wide
+		Len  int // each len
+		PetalFlag
+	}
+	StuckGroup []struct {
+		Num  int
+		Wide int
+		PetalFlag
+	}
+	HillGroup []struct {
+		Num  int
+		Wide int
+		PetalFlag
+	}
+}
+
 func main() {
 	rand.Seed(int64(time.Now().UnixNano()))
 
 	var width, height int = 500, 500
 	flag.IntVar(&width, "w", width, "width of map")
 	flag.IntVar(&height, "h", width, "height of map")
+
 	var outname = flag.String("out", "topomap", "image filename of output")
 	var outdir = flag.String("outdir", "output", "out put dir")
+
 	var nHills = flag.Int("hill", 100, "hill number for making rand topo by hill")
 	var hillWide = flag.Int("hill-wide", 100, "hill wide for making rand topo by hill")
-	var bShowMap = flag.Bool("print", false, "print map for debug")
+
+	// ridges 数组
 	var nRidge = flag.Int("ridge", 1, "num of ridges for making ridges")
 	var ridgeWide = flag.Int("ridge-wide", 50, "ridge wide for making ridge each")
-	//var ridgeStep = flag.Int("ridge-step", 8, "ridge step for making ridge each")
 	var ridgeLen = flag.Int("ridge-len", 100, "ridge length when making ridge each")
-	var dropNum = flag.Int("dropnum", 100, "number of drops")
-	var times = flag.Int("times", 1000, "update times")
-	var zoom = flag.Int("zoom", 1, "zoom of out put image")
-	var addr = flag.String("addr", "", "addr of http server to listen and to show img on html(deprecated)")
-	var riverArrowScale = flag.Float64("river-arrow-scale", 0.8, "river arrow scale")
-	var drawFlag = flag.Int("draw-flag", 0, "draw flag: 1=draw filed vecor in topomap 2=draw hisway of droplet")
-	var stuckNum = flag.Int("stuck", 0, "stuck hill number, hill in stuck area will pressed, even height be 0")
-	var colorTplStep = flag.Int("color-tpl-step", 0, "color tpl file step line, will igore there step in tpl")
 
+	// stuck
+	var stuckNum = flag.Int("stuck", 0, "stuck hill number, hill in stuck area will pressed, even height be 0")
+
+	// petal
 	petalFlag := &PetalFlag{}
 	flag.IntVar(&petalFlag.Shape, "petal-shape", 2, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
 	flag.Float64Var(&petalFlag.PetalNum, "petal-num", 3, "petal numbers of hill")
 	flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 0.5, "petal sharp, 取值 0-1.0, 越大越锋利")
 	flag.StringVar(&colorTplFile, "color-tpl", colorTplFile, "color template file path")
+
+	// drops deprecated
+	var dropNum = flag.Int("dropnum", 100, "number of drops")
+	var times = flag.Int("times", 1000, "update times")
+
+	var addr = flag.String("addr", "", "addr of http server to listen and to show img on html(deprecated)")
+
+	// output draw zoom
+	var zoom = flag.Int("zoom", 1, "zoom of out put image")
+	var bShowMap = flag.Bool("print", false, "print map for debug")
+	var riverArrowScale = flag.Float64("river-arrow-scale", 0.8, "river arrow scale")
+	var drawFlag = flag.Int("draw-flag", 0, "draw flag: 1=draw filled vector in topomap 2=draw hisway of droplet")
+	var colorTplStep = flag.Int("color-tpl-step", 0, "color tpl file step line, will igore there step in tpl")
 
 	flag.Parse()
 
@@ -602,6 +633,7 @@ func main() {
 	// 转换痕迹为ridge 为每个环分配随机半径 输出到m中
 	var ridgeHills []Hill
 	for ri := 0; ri < *nRidge; ri++ {
+		rand.Seed(time.Now().UnixNano() / 1000)
 		ridgeHills = append(ridgeHills, MakeRidge(*ridgeLen, *ridgeWide, width, height)...)
 	}
 	//log.Println("ridgeHills=", ridgeHills)
