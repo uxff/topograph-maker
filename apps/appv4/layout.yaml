@@ -8,26 +8,29 @@ ridgegroup:
       len: 80
     - num: 10
       wide: 100
-      len: 50
+      len: 30
   petalflag:
-    shape: 0
-    petalnum: 0
-    sharp: 0
+    shape: 3
+    petalnum: 3
+    sharp: 0.5
 stuckgroup:
   list:
-    - num: 2
+    - num: 0
       wide: 200
       len: 1
-  petalflag:
-    shape: 0
-    petalnum: 0
-    sharp: 0
-hillgroup:
-  list:
-    - num: 500
-      wide: 50
+    - num: 2
+      wide: 400
       len: 1
   petalflag:
-    shape: 0
-    petalnum: 0
-    sharp: 0
+    shape: 3
+    petalnum: 3
+    sharp: 0.5
+hillgroup:
+  list:
+    - num: 0
+      wide: 100
+      len: 1
+  petalflag:
+    shape: 3
+    petalnum: 3
+    sharp: 0.5

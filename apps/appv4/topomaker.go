@@ -574,6 +574,17 @@ func (h HillGroup) ToHills(width, height int) []Hill {
 
 	return hills
 }
+func (h HillGroup) ToRidgeHills(width, height int) []Hill {
+	hills := make([]Hill, 0)
+
+	for i := range h.List {
+		for li := 0; li < h.List[i].Num; li++ {
+			hills = append(hills, MakeRidge(h.List[i].Len, h.List[i].Wide, width, height)...)
+		}
+	}
+
+	return hills
+}
 
 func main() {
 	rand.Seed(int64(time.Now().UnixNano()))
@@ -605,23 +616,6 @@ func main() {
 
 	var outname = flag.String("out", "topomap", "image filename of output")
 	var outdir = flag.String("outdir", "output", "out put dir")
-
-	//var nHills = flag.Int("hill", 100, "hill number for making rand topo by hill")
-	//var hillWide = flag.Int("hill-wide", 100, "hill wide for making rand topo by hill")
-
-	// ridges 数组
-	//var nRidge = flag.Int("ridge", 1, "num of ridges for making ridges")
-	//var ridgeWide = flag.Int("ridge-wide", 50, "ridge wide for making ridge each")
-	//var ridgeLen = flag.Int("ridge-len", 100, "ridge length when making ridge each")
-
-	// stuck
-	//var stuckNum = flag.Int("stuck", 0, "stuck hill number, hill in stuck area will pressed, even height be 0")
-
-	// petal
-	//petalFlag := &PetalFlag{}
-	//flag.IntVar(&petalFlag.Shape, "petal-shape", 2, "shape of petal, 0:圆形 无花瓣 1:圆角 2:锐角")
-	//flag.Float64Var(&petalFlag.PetalNum, "petal-num", 3, "petal numbers of hill")
-	//flag.Float64Var(&petalFlag.Sharp, "petal-sharp", 0.5, "petal sharp, 取值 0-1.0, 越大越锋利")
 
 	flag.StringVar(&colorTplFile, "color-tpl", colorTplFile, "color template file path")
 
@@ -664,7 +658,7 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
-	ridgeHills := layoutConf.RidgeGroup.ToHills(width, height)
+	ridgeHills := layoutConf.RidgeGroup.ToRidgeHills(width, height)
 	allGenRidgeNum += len(ridgeHills)
 	log.Printf("will make ridges(n:%d)", allGenRidgeNum)
 
