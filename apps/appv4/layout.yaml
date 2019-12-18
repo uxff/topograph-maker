@@ -2,12 +2,12 @@ ridgegroup:
   list:
     - num: 10
       wide: 50
-      len: 100
-    - num: 10
-      wide: 80
       len: 80
-    - num: 10
-      wide: 100
+    - num: 2
+      wide: 80
+      len: 50
+    - num: 2
+      wide: 80
       len: 30
   petalflag:
     shape: 3
@@ -18,7 +18,7 @@ stuckgroup:
     - num: 0
       wide: 200
       len: 1
-    - num: 2
+    - num: 4
       wide: 400
       len: 1
   petalflag:
@@ -27,7 +27,7 @@ stuckgroup:
     sharp: 0.5
 hillgroup:
   list:
-    - num: 0
+    - num: 200
       wide: 100
       len: 1
   petalflag:
