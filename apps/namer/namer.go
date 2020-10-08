@@ -10,11 +10,11 @@ import (
 const As = `aeiou`
 
 var Ass = []string{
-	"a", "an", "ai", "ao", "au", "ar", "ang", "al",
-	"e", "en", "ei", "ee", "eo", "eu", "er", "eng", "el", "ea",
-	"i", "in", "ia", "ie", "io", "iu", "ir", "ing", "ii", "il", "ian", "iang",
+	"a", "an", "ai", "ao", "au", "ang", "ar", "al",
+	"e", "ea", "ee", "ei", "eo", "eu", "en", "eng", "er", "el",
+	"i", "ia", "ie", "ii", "io", "iu", "in", "ing", "ir", "il", "iai", "ian", "iang", "iao",
 	"o", "oa", "oe", "oi", "oo", "ou", "on", "ong", "or", "ol",
-	"u", "ua", "ue", "ui", "uo", "uu", "un", "ung", "ur", "ul", "uan", "uang",
+	"u", "ua", "ue", "ui", "uo", "uu", "un", "ung", "ur", "ul", "uai", "uan", "uang", "uao",
 	"iui", "iua", "iue", "iuo", "iun", "iuan", "iuang", "iuai", "iuao",
 }
 
