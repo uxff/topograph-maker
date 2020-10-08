@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -29,7 +28,7 @@ var Bss = []string{
 
 func MakeName() string {
 	s := make([]string, 0)
-	alllen := 2 + rand.Intn(8)
+	alllen := 2 + rand.Intn(6)
 	for i := 0; i < alllen; i++ {
 		abRoller := rand.Float32()
 		if abRoller > 0.3 {
@@ -43,7 +42,7 @@ func MakeName() string {
 		}
 	}
 	s1 := strings.Join(s, "")
-	s1 = strings.Trim(s1, " ")
+	// s1 = strings.Trim(s1, " ")
 	if len(s1) > 0 && s1[0] > 96 {
 		//s1[0] = s1[0] - 32
 		s1 = strings.ToUpper(s1[:1]) + s1[1:]
@@ -51,13 +50,13 @@ func MakeName() string {
 	return s1
 }
 
-var Acc = "aeiou "
+var Acc = "aeiou"
 var Bcc = "qwrtypsdfghjklzxcvbnm"
 
 // 此方法来自VB
 func MakeName2() []byte {
 	s1 := make([]byte, 0)
-	rnum := rand.Intn(6) + 3 // 循环2到7次,产生4到14个随机字母
+	rnum := rand.Intn(5) + 3 // 循环2到7次,产生4到14个随机字母
 	for i := 1; i < rnum; i++ {
 		rand.Seed(time.Now().UnixNano() + int64(i))
 		if rand.Intn(5) > 2 { // 随机置换声母和韵母的位置
@@ -68,7 +67,7 @@ func MakeName2() []byte {
 			s1 = append(s1, Acc[rand.Intn(len(Acc))], byte(rand.Intn(26)+97))
 		}
 	}
-	s1 = bytes.Trim(s1, " ")
+	// s1 = bytes.Trim(s1, " ")
 	if len(s1) > 0 && s1[0] > 96 {
 		s1[0] = s1[0] - 32
 	}
