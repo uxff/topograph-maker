@@ -22,7 +22,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"image"
 	"image/color"
 	"image/png"
@@ -33,6 +32,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v2"
 )
 
 // 等高线文件模板 取垂直第一列的像素
@@ -407,6 +408,7 @@ type HillGroup struct {
 		Num  int // num
 		Wide int // each wide
 		Len  int // each len
+		High int // each max high
 	}
 	PetalFlag
 }
@@ -421,7 +423,10 @@ type LayoutConfig struct {
 func (h HillGroup) ToHills(width, height int) []Hill {
 	hills := make([]Hill, 0)
 	for i := range h.List {
-		hills = append(hills, MakeHills(width, height, h.List[i].Wide, h.List[i].Num)...)
+		if h.List[i].High <= 0 {
+			h.List[i].High = HillHeightMedian
+		}
+		hills = append(hills, MakeHills(width, height, h.List[i].Wide, h.List[i].Num, h.List[i].High)...)
 	}
 
 	return hills
@@ -431,7 +436,10 @@ func (h HillGroup) ToRidgeHills(width, height int) []Hill {
 
 	for i := range h.List {
 		for li := 0; li < h.List[i].Num; li++ {
-			hills = append(hills, MakeRidge(h.List[i].Len, h.List[i].Wide, width, height)...)
+			if h.List[i].High <= 0 {
+				h.List[i].High = HillHeightMedian
+			}
+			hills = append(hills, MakeRidge(h.List[i].Len, h.List[i].Wide, width, height, h.List[i].High)...)
 		}
 	}
 
@@ -444,22 +452,6 @@ func main() {
 	var layoutYamlFile = "apps/appv4/layout.yaml"
 
 	flag.StringVar(&layoutYamlFile, "layout", layoutYamlFile, "layout yaml file")
-
-	layoutConf := &LayoutConfig{}
-
-	layoutContent, err := ioutil.ReadFile(layoutYamlFile)
-	if err != nil {
-		log.Printf("cannot read yaml file: %v", err)
-		return
-	}
-
-	err = yaml.Unmarshal(layoutContent, layoutConf)
-	if err != nil {
-		log.Printf("cannot parse yaml file: %v", err)
-		return
-	}
-
-	log.Printf("the layout: %+v", layoutConf)
 
 	var width, height int = 500, 500
 
@@ -480,9 +472,25 @@ func main() {
 	var bShowMap = flag.Bool("print", false, "print map for debug")
 	var riverArrowScale = flag.Float64("river-arrow-scale", 0.8, "river arrow scale")
 	var drawFlag = flag.Int("draw-flag", 0, "draw flag: 1=draw filled vector in topomap 2=draw hisway of droplet")
-	var colorTplStep = flag.Int("color-tpl-step", 0, "color tpl file step line, will igore there step in tpl")
+	var colorTplStep = flag.Int("color-tpl-step", 0, "color tpl file step line, will ignore there step in tpl")
 
 	flag.Parse()
+
+	layoutConf := &LayoutConfig{}
+
+	layoutContent, err := ioutil.ReadFile(layoutYamlFile)
+	if err != nil {
+		log.Printf("cannot read yaml file: %v", err)
+		return
+	}
+
+	err = yaml.Unmarshal(layoutContent, layoutConf)
+	if err != nil {
+		log.Printf("cannot parse yaml file: %v", err)
+		return
+	}
+
+	log.Printf("the layout: %+v", layoutConf)
 
 	var m Topomap
 	var w WaterMap
@@ -800,7 +808,7 @@ ridge = []Hill
 ridgeLen = Hill 个数
 ridgeWide = Hill wide
 */
-func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
+func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight, maxHigh int) []Hill {
 	ridgeHills := make([]Hill, ridgeLen)
 	widthEdge := mWidth / 8
 	heightEdge := mHeight / 8
@@ -811,7 +819,7 @@ func MakeRidge(ridgeLen, ridgeWide, mWidth, mHeight int) []Hill {
 	//log.Printf("ridge baseTowardX,baseTowardY=%d,%d  squar=%d", baseTowardX, baseTowardY, baseTowardX*baseTowardX+baseTowardY*baseTowardY)
 	for ri := 0; ri < int(ridgeLen); ri++ {
 		r := &ridgeHills[ri]
-		r.h = rand.Int()%RidgeHeightMedian + RidgeHeightMedian/2
+		r.h = rand.Int()%maxHigh + maxHigh/2
 		r.tiltDir, r.tiltLen = rand.Float64()*math.Pi*2, (rand.Int()%20)+1
 		if ri == 0 {
 			// 第一个
@@ -903,7 +911,7 @@ func randomDir() (x, y float32) {
 	return
 }
 
-func MakeHills(width, height, hillWide, num int) []Hill {
+func MakeHills(width, height, hillWide, num, maxHigh int) []Hill {
 	// 随机n个圆圈 累加抬高 输出到m中
 	widthEdge := width / 9
 	heightEdge := height / 9
@@ -911,7 +919,7 @@ func MakeHills(width, height, hillWide, num int) []Hill {
 	for ri, _ := range hills {
 		r := &hills[ri]
 		// todo 地图边框附近不要去
-		r.x, r.y, r.h = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge, rand.Int()%HillHeightMedian+HillHeightMedian/2
+		r.x, r.y, r.h = (rand.Int()%(width-widthEdge*2))+widthEdge, (rand.Int()%(height-heightEdge*2))+heightEdge, rand.Int()%maxHigh+maxHigh/2
 		// 倾斜度 todo tilt: 未生效
 		r.tiltDir, r.tiltLen, r.r = rand.Float64()*math.Pi*2, (rand.Int()%20)+1, int(math.Sqrt(float64(rand.Int()%(hillWide*hillWide+1))))
 		//r.r, r.h = hillWide, 10 /// todo: this is debug
